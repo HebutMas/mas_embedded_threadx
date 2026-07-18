@@ -5,7 +5,6 @@ set(_module_sources
     algorithm/user_lib.c
     algorithm/crc_rm.c
     algorithm/lqr.c
-    algorithm/chassis_type.c
 )
 
 # 生成的头文件目录 (board binary dir/generated)
@@ -91,6 +90,10 @@ if(MODULE_MOTOR)
         MOTOR/SERVO/motor_servo.c
         MOTOR/ZDT_STEPMOTOR/motor_zdt.c
     )
+    # 底盘运动学：只有单板/底盘板才需要
+    if(BOARD STREQUAL "single" OR BOARD STREQUAL "chassis")
+        list(APPEND _module_sources algorithm/chassis_type.c)
+    endif()
     list(APPEND _module_includes
         ${CMAKE_CURRENT_SOURCE_DIR}/MOTOR
         ${CMAKE_CURRENT_SOURCE_DIR}/MOTOR/DJI
