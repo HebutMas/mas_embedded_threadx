@@ -41,6 +41,9 @@ typedef struct
     uint8_t fire_advice;  /* 开火建议 */
     float   target_yaw;   /* 目标偏航角 (rad) */
     float   target_pitch; /* 目标俯仰角 (rad) */
+    float   vx;          /* 目标速度 x (m/s) */
+    float   vy;          /* 目标速度 y (m/s) */
+    uint8_t nav_state;    /* 导航状态 */
     uint8_t tail;         /* 帧尾 0x55 */
 } ReceivePacket;
 

@@ -18,6 +18,8 @@
 #define ONE_BULLET_DELTA_ANGLE         60.0f          // 发射一发弹丸拨盘转动的距离,由机械设计图纸给出
 #define NUM_PER_CIRCLE                 6              // 拨盘一圈的装载量
 
+#define GRAVITY_GAMMA 1.58f                              // 重力前馈补偿项
+#define GRAVITY_K_PITCH -0.49f                           // pitch轴重力前馈系数
 // clang-format on
 
 #pragma pack(1)

@@ -61,6 +61,8 @@ static void start_rx_it(UART_Device *dev)
 static void start_rx_dma(UART_Device *dev)
 {
     dev->last_buf_pos = 0;
+    dev->rx_fifo.in   = 0;
+    dev->rx_fifo.out  = 0;
     HAL_UARTEx_ReceiveToIdle_DMA(dev->huart, dev->rx_buf, (uint16_t)dev->buf_size);
 }
 
@@ -221,9 +223,9 @@ int BSP_UART_Read(UART_Device *device, uint8_t *buf, uint32_t buf_size, uint32_t
     }
 
     /* 从 kfifo 中读出数据 */
-    uint32_t avail  = kfifo_len(&device->rx_fifo);
+    uint32_t avail   = kfifo_len(&device->rx_fifo);
     uint32_t to_read = (avail <= buf_size) ? avail : buf_size;
-    uint32_t actual = kfifo_out(&device->rx_fifo, buf, to_read);
+    uint32_t actual  = kfifo_out(&device->rx_fifo, buf, to_read);
     if (rx_len) *rx_len = actual;
     return (int)actual;
 }
@@ -281,9 +283,9 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         if (new_len > 0)
         {
             /* 保护 kfifo 容量: in 不超过 out + mask + 1 (即 fifo 容量) */
-            unsigned int fifo_cap  = dev->rx_fifo.mask + 1;
-            unsigned int max_in    = dev->rx_fifo.out + fifo_cap;
-            unsigned int space     = (dev->rx_fifo.in < max_in) ? (max_in - dev->rx_fifo.in) : 0;
+            unsigned int fifo_cap = dev->rx_fifo.mask + 1;
+            unsigned int max_in   = dev->rx_fifo.out + fifo_cap;
+            unsigned int space    = (dev->rx_fifo.in < max_in) ? (max_in - dev->rx_fifo.in) : 0;
             if (new_len > space) new_len = space;
 
             if (new_len > 0)
@@ -296,13 +298,11 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         }
     }
 }
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) { HAL_UART_Abort_IT(huart); }
-
-void HAL_UART_AbortCpltCallback(UART_HandleTypeDef *huart)
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
+    HAL_UART_Abort(huart); /* 同步 abort，消除异步竞态 */
     UART_Device *dev = Find_Device(huart);
     if (!dev) return;
-
     if (dev->rx_mode == UART_MODE_IT)
     {
         start_rx_it(dev);
@@ -312,3 +312,5 @@ void HAL_UART_AbortCpltCallback(UART_HandleTypeDef *huart)
         start_rx_dma(dev);
     }
 }
+
+void HAL_UART_AbortCpltCallback(UART_HandleTypeDef *huart) { (void)huart; }

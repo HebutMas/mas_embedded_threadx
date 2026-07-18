@@ -88,7 +88,7 @@ void gimbal_init(void)
                                                 .other_speed_feedback_ptr = &bmi088_dev->gyro[0], // c板的pitch轴角速度，根据实际选择对应角速度
                                                 .lqr_init =
                                                     {
-                                                        .K         = {10.0f,0.89f}, // 28.7312f,2.5974f
+                                                        .K         = {5.4f,0.6f}, // 28.7312f,2.5974f
                                                         .state_dim = 2,
                                                     },
                                             },

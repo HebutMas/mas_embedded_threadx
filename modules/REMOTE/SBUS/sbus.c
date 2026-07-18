@@ -118,7 +118,7 @@ void remote_sbus_decode(Remote_Data_t *data, Offline_Device *offline)
 
         if (buf[i + 23] == 0x00)
         {
-            if (offline) Module_Offline_device_update(offline);
+            Module_Offline_device_update(offline);
         }
     }
 }

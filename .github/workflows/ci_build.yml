@@ -1,0 +1,80 @@
+name: CI Build
+
+on:
+  push:
+    branches:
+      - 'feat/**'
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  # ── 扫描 apps/ 目录，生成矩阵 JSON ──
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      configs: ${{ steps.scan.outputs.configs }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan apps directory
+        id: scan
+        run: |
+          # 找 apps/<robot>/<type>_board/ ，排除 templates
+          items=""
+          for d in apps/*/*_board; do
+            [ -d "$d" ] || continue
+            [[ "$d" == apps/templates/* ]] && continue
+            robot=$(echo "$d" | cut -d/ -f2)
+            board_type=$(basename "$d" | sed 's/_board$//')
+            items+="{\"robot\":\"$robot\",\"board_type\":\"$board_type\"},"
+          done
+          configs="[${items%,}]"
+          echo "configs=$configs"
+          echo "configs=$configs" >> $GITHUB_OUTPUT
+
+  # ── 编译 ──
+  build:
+    needs: matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [damiao_h7, dji_c]
+        config: ${{ fromJson(needs.matrix.outputs.configs) }}
+        build_type: [Debug]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install ARM GCC Toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi ninja-build
+
+      - name: Configure
+        run: |
+          sed -i 's/set(ROBOT ".*")/set(ROBOT "${{ matrix.config.robot }}")/' apps/config.cmake
+          sed -i 's/set(BOARD ".*")/set(BOARD "${{ matrix.config.board_type }}")/' apps/config.cmake
+          cmake -S board/${{ matrix.board }} -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/board/${{ matrix.board }}/cmake/gcc-arm-none-eabi.cmake
+
+      - name: Build
+        run: cmake --build build -j $(nproc)
+
+      - name: Show firmware size
+        run: arm-none-eabi-size build/base.elf
+
+
+      - name: Copy elf
+        run: cp build/base.elf ${{ matrix.board }}_${{ matrix.config.robot }}_${{ matrix.config.board_type }}_Debug.elf
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.board }}_${{ matrix.config.robot }}_${{ matrix.config.board_type }}
+          path: ${{ matrix.board }}_${{ matrix.config.robot }}_${{ matrix.config.board_type }}_Debug.elf

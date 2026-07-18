@@ -32,7 +32,7 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
     {
         /* 摇杆 → 速度比例 (-1.0 ~ +1.0) */
         Chassis_Ctrl->vx = (float)Module_Remote_get_channel(1) / (float)(DT7_CH_VALUE_MAX - DT7_CH_VALUE_MIN);
-        Chassis_Ctrl->vy = (float)Module_Remote_get_channel(2) / (float)(DT7_CH_VALUE_MAX - DT7_CH_VALUE_MIN);
+        Chassis_Ctrl->vy = -(float)Module_Remote_get_channel(2) / (float)(DT7_CH_VALUE_MAX - DT7_CH_VALUE_MIN);
 
         dt7_custom_t *dt7_custom = Module_Remote_get_dt7_custom();
         if (dt7_custom != NULL)
@@ -51,11 +51,14 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
             }
 
             /* 云台控制部分 */
-            Gimbal_Ctrl->gimbal_mode = gimbal_gyro_mode;
-            Gimbal_Ctrl->yaw -= 0.001f * (float)(Module_Remote_get_channel(3));
-            Gimbal_Ctrl->pitch += 0.001f * (float)(Module_Remote_get_channel(4));
-            VAL_LIMIT(Gimbal_Ctrl->pitch, PITCH_MIN_ANGLE, PITCH_MAX_ANGLE);
-            if (dt7_custom->sw1 == DT7_SW_DOWN)
+            if (dt7_custom->sw1 == DT7_SW_MID)
+            {
+                Gimbal_Ctrl->gimbal_mode = gimbal_gyro_mode;
+                Gimbal_Ctrl->yaw -= 0.001f * (float)(Module_Remote_get_channel(3));
+                Gimbal_Ctrl->pitch += 0.001f * (float)(Module_Remote_get_channel(4));
+                VAL_LIMIT(Gimbal_Ctrl->pitch, PITCH_MIN_ANGLE, PITCH_MAX_ANGLE);
+            }
+            else if (dt7_custom->sw1 == DT7_SW_DOWN)
             {
                 Chassis_Ctrl->chassis_mode = chassis_zero_force;
                 Gimbal_Ctrl->gimbal_mode   = gimbal_zero_force;
@@ -69,6 +72,13 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
             {
                 Shoot_Ctrl->shoot_mode    = shoot_on;
                 Shoot_Ctrl->friction_mode = friction_on;
+                Shoot_Ctrl->load_mode     = load_stop;
+            }
+            else if (dt7_custom->sw1 == DT7_SW_MID)
+            {
+                Shoot_Ctrl->shoot_mode    = shoot_on;
+                Shoot_Ctrl->friction_mode = friction_off;
+
                 if (dt7_custom->wheel == 0)
                 {
                     Shoot_Ctrl->load_mode = load_stop;
@@ -81,12 +91,6 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
                 {
                     Shoot_Ctrl->load_mode = load_burstfire;
                 }
-            }
-            else if (dt7_custom->sw1 == DT7_SW_MID)
-            {
-                Shoot_Ctrl->shoot_mode    = shoot_on;
-                Shoot_Ctrl->friction_mode = friction_off;
-                Shoot_Ctrl->load_mode     = load_stop;
             }
         }
         else

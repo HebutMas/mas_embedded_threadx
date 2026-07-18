@@ -1,3 +1,11 @@
+/*
+ * @Author: sji733055-glitch sji733055@gmail.com
+ * @Date: 2026-07-01 19:24:17
+ * @LastEditors: sji733055-glitch sji733055@gmail.com
+ * @LastEditTime: 2026-07-15 08:59:45
+ * @FilePath: \mas_embedded_threadx\modules\VISION\module_vision.c
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 #include "module_vision.h"
 #include "bsp_def.h"
 #include "usbd_cdc_acm_user.h"
@@ -10,9 +18,9 @@
 #include "ulog_def.h"
 
 #define SEND_HEADER 0xAA
-#define SEND_TAIL   0x55
+#define SEND_TAIL   0x5A
 #define RECV_HEADER 0xBB
-#define RECV_TAIL   0x55
+#define RECV_TAIL   0x5B
 
 static ReceivePacket              rx_packet;
 static Offline_Device            *offline_dev = NULL;

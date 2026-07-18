@@ -6,8 +6,8 @@
 #include "tx_api.h"
 
 /* 事件标志位定义 */
-#define BSP_USB_EVENT_RX ((ULONG)0x01) /* RX 数据就绪 */
-#define BSP_USB_EVENT_TX ((ULONG)0x02) /* TX 发送完成 */
+#define BSP_USB_EVENT_RX   ((ULONG)0x01) /* RX 数据就绪 */
+#define BSP_USB_EVENT_TX   ((ULONG)0x02) /* TX 发送完成 */
 
 /* 端点地址 */
 #define CDC_IN_EP          0x81
@@ -96,8 +96,9 @@ static const struct usb_descriptor cdc_descriptor = {
 
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t cdc_read_buffer[CDC_RX_FIFO_SIZE];
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t cdc_write_buffer[CDC_MAX_MPS];
+USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t cdc_out_ep_buffer[CDC_MAX_MPS];
 
-static struct kfifo cdc_rx_fifo;
+static struct kfifo         cdc_rx_fifo;
 static TX_EVENT_FLAGS_GROUP usb_event_flags;
 
 /* USB 设备事件回调 */
@@ -120,7 +121,7 @@ static void usbd_event_handler(uint8_t busid, uint8_t event)
     case USBD_EVENT_CONFIGURED:
         /* 初始 TX 就绪标志，启动首个 OUT 端点读传输 */
         tx_event_flags_set(&usb_event_flags, BSP_USB_EVENT_TX, TX_OR);
-        usbd_ep_start_read(busid, CDC_OUT_EP, cdc_read_buffer + (cdc_rx_fifo.in & cdc_rx_fifo.mask), CDC_MAX_MPS);
+        usbd_ep_start_read(busid, CDC_OUT_EP, cdc_out_ep_buffer, CDC_MAX_MPS);
         break;
     case USBD_EVENT_SET_REMOTE_WAKEUP:
         break;
@@ -139,42 +140,15 @@ static void usbd_event_handler(uint8_t busid, uint8_t event)
 void usbd_cdc_acm_bulk_out(uint8_t busid, uint8_t ep, uint32_t nbytes)
 {
     (void)ep;
-
-    /* 保护 kfifo 容量: in 不超过 out + mask + 1 */
-    unsigned int fifo_cap  = cdc_rx_fifo.mask + 1;
-    unsigned int max_in    = cdc_rx_fifo.out + fifo_cap;
-    unsigned int space     = (cdc_rx_fifo.in < max_in) ? (max_in - cdc_rx_fifo.in) : 0;
-    if (nbytes > space) nbytes = space;
-    if (nbytes == 0) return;
-
-    /* 推进 kfifo 写入索引 */
-    __DMB();
-    cdc_rx_fifo.in += nbytes;
-
-    /* 计算下一次 DMA 目标地址，确保 4 字节对齐（DWC2 硬件要求） */
-    unsigned int pos = cdc_rx_fifo.in & cdc_rx_fifo.mask;
-
-    /* 若 pos 非 4 字节对齐，跳过补齐字节 */
-    unsigned int align_gap = (4 - (pos & 0x3)) & 0x3;
-    if (align_gap)
+    /* 将接收到的数据写入 kfifo */
+    if (nbytes)
     {
-        cdc_rx_fifo.in += align_gap;
-        pos = cdc_rx_fifo.in & cdc_rx_fifo.mask;
+        kfifo_in(&cdc_rx_fifo, cdc_out_ep_buffer, nbytes);
+        /* 通知等待读取的任务有新数据 */
+        tx_event_flags_set(&usb_event_flags, BSP_USB_EVENT_RX, TX_OR);
     }
-
-    /* 对齐后再计算尾部剩余空间，判断是否需要回绕 */
-    unsigned int tail = (cdc_rx_fifo.mask + 1) - pos;
-    if (tail < CDC_MAX_MPS)
-    {
-        /* 尾部连续空间不足 → 回绕到缓冲区起始 */
-        cdc_rx_fifo.in += tail;
-        pos = 0;
-    }
-
-    usbd_ep_start_read(busid, CDC_OUT_EP, cdc_read_buffer + pos, CDC_MAX_MPS);
-
-    /* 通知等待读取的任务有新数据 */
-    tx_event_flags_set(&usb_event_flags, BSP_USB_EVENT_RX, TX_OR);
+    usbd_ep_start_read(busid, CDC_OUT_EP, cdc_out_ep_buffer, CDC_MAX_MPS);
+    
 }
 
 /**
@@ -205,8 +179,6 @@ static struct usbd_endpoint cdc_in_ep = {.ep_addr = CDC_IN_EP, .ep_cb = usbd_cdc
 static struct usbd_interface intf0;
 static struct usbd_interface intf1;
 
-
-
 void cdc_acm_init(uint8_t busid, uintptr_t reg_base)
 {
     kfifo_init(&cdc_rx_fifo, cdc_read_buffer, CDC_RX_FIFO_SIZE, 1);
@@ -221,7 +193,6 @@ void cdc_acm_init(uint8_t busid, uintptr_t reg_base)
 
     usbd_initialize(busid, reg_base, usbd_event_handler);
 }
-
 
 int cdc_acm_send(const uint8_t *data, uint32_t len, uint32_t timeout)
 {

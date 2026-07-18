@@ -29,6 +29,15 @@ const static Ins_t                 *ins          = NULL;
 const static Bmi088_device_t       *bmi088_dev   = NULL;
 const static Module_WT606_Device_t *wt606_device = NULL;
 static float                        big_yaw_offset;
+/*内部函数*/
+static void Gimbal_PitchFeedback(DM_Motor_t *motor,float cur_angle)
+{
+    /* 重力前馈 */
+    float ff_gravity = GRAVITY_K_PITCH * cur_angle + GRAVITY_GAMMA;
+
+    /* 写入控制器的前馈字段，本周期 LQR 输出会自动叠加它 */
+    pitch_motor->base.controller.feedforward_torque = ff_gravity;
+}
 
 void gimbal_init(void)
 {
@@ -145,7 +154,7 @@ void gimbal_init(void)
                                                 .other_speed_feedback_ptr = &bmi088_dev->gyro[0], // c板的pitch轴角速度，根据实际选择对应角速度
                                                 .lqr_init =
                                                     {
-                                                        .K         = {38.72983346f, 2.84576645f}, // 28.7312f,2.5974f
+                                                        .K         = {34.64101615f, 3.50167937f}, // 28.7312f,2.5974f
                                                         .state_dim = 2,
                                                     },
                                             },
@@ -173,6 +182,7 @@ void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
         if (!Module_Offline_get_device_status(big_yaw_motor->base.offline_dev) &&
             !Module_Offline_get_device_status(small_yaw_motor->base.offline_dev) && !Module_Offline_get_device_status(pitch_motor->base.offline_dev))
         {
+            Gimbal_PitchFeedback(pitch_motor, ins->euler_rad[1]);
             // 大yaw偏移量，用于实现跟随小yaw
             big_yaw_offset = wt606_device->YawTotalAngle_rad + ((float)(small_yaw_motor->measure.ecd - SMALL_YAW_ALIGN_ECD) * (2.0f * PI / 8192.0f));
             switch (gimbal_cmd->gimbal_mode)
