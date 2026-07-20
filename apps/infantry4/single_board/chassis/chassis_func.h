@@ -9,7 +9,7 @@
 #ifndef _CHASSIS_FUNC_H_
 #define _CHASSIS_FUNC_H_
 
-#include "../../infantry_def.h"
+#include "infantry_def.h"
 
 
 void chassis_init(void);

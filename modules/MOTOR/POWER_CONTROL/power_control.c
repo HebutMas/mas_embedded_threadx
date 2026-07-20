@@ -221,9 +221,9 @@ void PowerControl_Register(Motor_Base *motor, PowerCtrl_Role_e role, PowerCtrl_P
 
 void PowerControl_SetLimit(float power_limit_w, float buffer_energy_j, uint8_t use_buffer)
 {
-    s_power_limit   = power_limit_w;
-    s_buffer_energy = buffer_energy_j;
-    s_use_buffer    = use_buffer;
+    s_power_limit   = power_limit_w;// 功率限制
+    s_buffer_energy = buffer_energy_j;// 缓冲能量限制
+    s_use_buffer    = use_buffer;// 是否使用缓冲能量
 }
 
 void PowerControl_Update(void)

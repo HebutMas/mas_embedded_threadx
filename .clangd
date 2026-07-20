@@ -7,6 +7,10 @@ CompileFlags:
     - -ffreestanding
     - -fno-common
     - -fno-exceptions
+    - -Iapps/infantry3
+    - -Iapps/infantry4
+    - -Iapps/sentry
+    - -Iapps
 Completion:
   AllScopes: true
 InlayHints:

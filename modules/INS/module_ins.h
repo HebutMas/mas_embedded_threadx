@@ -31,8 +31,8 @@ typedef struct
     // 位姿
     float   euler_angle[3]; // roll pitch yaw(deg)
     float   euler_rad[3];   // roll pitch yaw(rad)
-    float   YawTotalAngle_rad;
-    int32_t YawRoundCount;
+    float   YawTotalAngle_rad;// yaw总角度(rad)
+    int32_t YawRoundCount;// yaw圆周次数
     // 采样时间间隔
     float    dt;
     uint32_t dwt_cnt;
