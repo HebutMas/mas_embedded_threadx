@@ -2,10 +2,11 @@
  * @Author: zhishang06 2494841771@qq.com
  * @Date: 2026-07-18 11:35:16
  * @LastEditors: zhishang06 2494841771@qq.com
- * @LastEditTime: 2026-07-19 15:29:22
+ * @LastEditTime: 2026-07-24 19:13:29
  * @FilePath: \mas_embedded_threadx\apps\infantry4\single_board\gimbal_func\gimbal_func.c
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
+ 
 #include "gimbal_func.h"
 #include "motor_dji.h"
 #include "user_lib.h"
@@ -19,6 +20,8 @@ static DM_Motor_t  *pitch_motor = NULL; // pitch电机指针
 
 const static Bmi088_device_t *bmi088_dev = NULL;
 const static Ins_t *ins = NULL;
+/*内部函数*/
+
 void gimbal_init(void)
 {
     ins = Module_INS_get();
@@ -82,7 +85,7 @@ void gimbal_init(void)
                                                 .other_speed_feedback_ptr = &bmi088_dev->gyro[0], // c板的pitch轴角速度，根据实际选择对应角速度
                                                 .lqr_init =
                                                     {
-                                                        .K         = {5.4f,0.6f}, // 28.7312f,2.5974f
+                                                        .K         = {5.4,0.6}, // 28.7312f,2.5974f
                                                         .state_dim = 2, 
                                                     },
                                             },
@@ -96,11 +99,12 @@ void gimbal_init(void)
                                             },
                                         .motor_init_info = {.motor_type = DM4310, .gear_ratio = 10, .max_torque = 10, .torque_constant = 0.093f}};
                                        pitch_motor  = Motor_DM_Init(&pitch_config, DM_MIT_MODE);
-    
+      pitch_motor->base.controller.feedforward_torque = 0.07f;   
 }
 
 void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
 {
+    
     if (gimbal_cmd == NULL || yaw_motor == NULL)
         return;
 
@@ -112,6 +116,7 @@ void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
             Motor_DM_Start(pitch_motor);
             Motor_DJI_SetRef(yaw_motor, gimbal_cmd->yaw * DEGREE_2_RAD);
              Motor_DM_SetRef(pitch_motor, gimbal_cmd->pitch * DEGREE_2_RAD);
+            
         }
         else
         {

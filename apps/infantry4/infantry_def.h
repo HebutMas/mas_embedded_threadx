@@ -2,7 +2,7 @@
  * @Author: zhishang06 2494841771@qq.com
  * @Date: 2026-07-17 19:21:37
  * @LastEditors: zhishang06 2494841771@qq.com
- * @LastEditTime: 2026-07-19 16:07:48
+ * @LastEditTime: 2026-07-23 20:47:10
  * @FilePath: \mas_embedded_threadx\apps\infantry4\infantry_def.h
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -14,9 +14,9 @@
 // clang-format off
 // 云台参数
 #define PITCH_HORIZON_ANGLE 0.0f            // 云台处于水平位置时编码器值
-#define PITCH_MAX_ANGLE     40.0f           // 云台竖直方向最大角度
-#define PITCH_MIN_ANGLE     -20.0f          // 云台竖直方向最小角度
-#define YAW_CHASSIS_ALIGN_ECD         3878            // 云台和底盘对齐时的编码器值
+#define PITCH_MAX_ANGLE     35.0f           // 云台竖直方向最大角度
+#define PITCH_MIN_ANGLE     -15.0f          // 云台竖直方向最小角度
+#define YAW_CHASSIS_ALIGN_ECD         1869            // 云台和底盘对齐时的编码器值
 // 底盘参数
 #define CHASSIS_MAX_SPEED_MPS         3.0f            // 底盘最大线速度 (m/s)
 // 发射参数

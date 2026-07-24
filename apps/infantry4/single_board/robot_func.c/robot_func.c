@@ -87,7 +87,7 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
      
         if (sw1 == SBUS_SW_UP) {
             Gimbal_Ctrl->gimbal_mode = gimbal_zero_force;
-        } else if (sw1 == SBUS_SW_DOWN) {
+        } else if (sw1 == SBUS_SW_MID) {
             Gimbal_Ctrl->gimbal_mode = gimbal_gyro_mode;
             Gimbal_Ctrl->yaw -= 0.0003f * (float)(Module_Remote_get_channel(4));
             Gimbal_Ctrl->pitch += 0.001f * (float)(Module_Remote_get_channel(3));
