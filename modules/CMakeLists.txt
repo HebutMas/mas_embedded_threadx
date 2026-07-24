@@ -8,9 +8,10 @@ set(_module_sources
     algorithm/chassis_type.c
 )
 
-# 生成的头文件目录 (board binary dir/generated)
-get_filename_component(_board_binary_dir ${CMAKE_CURRENT_BINARY_DIR} DIRECTORY)
-set(_generated_dir ${_board_binary_dir}/generated)
+# _generated_dir 由 cmake/board_common.cmake 设置，随目录作用域继承到这里
+if(NOT DEFINED _generated_dir)
+    message(FATAL_ERROR "_generated_dir is not defined; modules must be added via cmake/board_common.cmake")
+endif()
 
 set(_module_includes
     ${CMAKE_CURRENT_SOURCE_DIR}

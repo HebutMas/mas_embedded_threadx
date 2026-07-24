@@ -1,9 +1,17 @@
 # 机器人 & 板型 配置
-# 在这里修改 ROBOT / BOARD 
+# 默认值在这里改；也可用 -DROBOT=xxx -DBOARD=xxx 覆盖
+# 注意：已配置过的 build 目录以缓存值为准，改本文件默认值不影响旧 build 目录
 
 # 目标机器人 & 板型
-set(ROBOT "sentry") # hero / engineer / infantry3 / infantry4 / infantry5 / drone / sentry / darts / customcontrol
-set(BOARD "gimbal")    # single / gimbal / chassis
+set(ROBOT "sentry" CACHE STRING "Target robot")
+set_property(CACHE ROBOT PROPERTY STRINGS hero engineer infantry3 infantry4 infantry5 drone sentry darts customcontrol)
+set(BOARD "gimbal" CACHE STRING "Board role")
+set_property(CACHE BOARD PROPERTY STRINGS single gimbal chassis)
+
+# 板型校验
+if(NOT BOARD MATCHES "^(single|gimbal|chassis)$")
+    message(FATAL_ERROR "Unknown BOARD '${BOARD}', expected: single / gimbal / chassis")
+endif()
 
 # 加载默认模块配置
 include(${CMAKE_CURRENT_LIST_DIR}/../modules/module_config.cmake)

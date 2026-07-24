@@ -16,7 +16,8 @@ mas_embedded_threadx/
 ├── apps/                          # 应用层：机器人业务代码
 │   ├── config.cmake               # 全局构建配置（选择 ROBOT / BOARD）
 │   ├── app_init.c / app_init.h    # 应用层入口
-│   ├── generate_headers.cmake     # CMake 生成 robot_def.h / module_config.h 脚本
+│   ├── robot_def.h.in             # robot_def.h 生成模板
+│   ├── module_config.h.in         # module_config.h 生成模板（变量 → 宏 映射）
 │   ├── templates/                 # 机器人配置模板
 │   │   ├── robot.cmake            # 各机器人差异配置的参考模板
 │   │   ├── single_board/          # 单板模板代码
@@ -100,12 +101,20 @@ git clone git@github.com:HebutMas/mas_embedded_threadx.git // ssh
 
 ### 选择机器人和板型
 
-编辑 `apps/config.cmake`：
+编辑 `apps/config.cmake` 中的默认值：
 
 ```cmake
-set(ROBOT "sentry")     # hero / engineer / infantry3 / infantry4 / infantry5 / drone / sentry / darts / customcontrol
-set(BOARD "gimbal")     # single / gimbal / chassis
+set(ROBOT "sentry" CACHE STRING "Target robot")  # hero / engineer / infantry3 / infantry4 / infantry5 / drone / sentry / darts / customcontrol
+set(BOARD "gimbal" CACHE STRING "Board role")    # single / gimbal / chassis
 ```
+
+也可不改文件，配置时用命令行覆盖（缓存变量，适合 CI 和多配置切换）：
+
+```bash
+cmake -S board/dji_c -B build/dji_c/Debug --preset Debug -DROBOT=infantry3 -DBOARD=single
+```
+
+> 注意：已配置过的 build 目录以缓存值为准，切换时用 `-DROBOT=...` 覆盖或删除 build 目录。
 
 ### 编译
 
@@ -170,7 +179,7 @@ find . -name '*.c' -o -name '*.h' | xargs clang-format -i
 2. 在 `modules/CMakeLists.txt` 中添加 `if(MODULE_XXX)` 条件编译块
 3. 在 `modules/module_init.c` 中添加条件初始化代码
 4. 在 `modules/module_config.cmake` 中注册默认参数和模块列表
-5. 在 `apps/generate_headers.cmake` 中添加该模块的参数宏导出（普通宏用 `#define VAR ${VAR}`，可选硬件句柄用 `_gen_cmakedefine`）
+5. 在 `apps/module_config.h.in` 模板中添加该模块的参数宏导出（普通宏用 `#define VAR @VAR@`，可选硬件句柄用 `#cmakedefine VAR @VAR@`）
 6. 在目标机器人的 `apps/<robot>/robot.cmake` 中使能或覆盖配置
 
 **详细规范与示例请参考 [`modules/MODULES.MD`](modules/MODULES.MD)。**
