@@ -25,7 +25,7 @@ set(REMOTE_TASK_STACK_SIZE  1024)   # 任务栈大小
 set(REMOTE_TASK_PRIORITY    9)      # 任务优先级
 set(REMOTE_TASK_VT_PRIORITY 8)      # 图传串口任务优先级
 set(REMOTE_OFFLINE_ENABLE      1)   # 遥控器离线检测
-set(REMOTE_VT_OFFLINE_ENABLE   2)   # 图传离线检测
+set(REMOTE_VT_OFFLINE_ENABLE   1)   # 图传离线检测
 
 # BMI088 默认参数
 set(BMI088_TEMP_ENABLE      0)      # 温度控制
