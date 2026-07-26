@@ -12,7 +12,7 @@
 static DJI_Motor_t                *chassis_motors[4];
 static float                       chassis_vx, chassis_vy, chassis_wz; // 将云台系的速度投影到底盘
 static PIDInstance                 chassis_follow_pid;
-static const Chassis_Diff_Config_s chassis_diff_config = {.decele_ratio = 16.0f, .wheel_base_x = 0.5, .wheel_base_y = 0.3, .wheel_radius = 0.075};
+static const Chassis_Diff_Config_s chassis_diff_config = {.decele_ratio = 16.0f, .wheel_base_x = 0.36, .wheel_base_y = 0.36, .wheel_radius = 0.075};
 
 void chassis_init(void)
 {

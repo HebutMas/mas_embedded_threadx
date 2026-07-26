@@ -2,7 +2,7 @@
  * @Author: zhishang06 2494841771@qq.com
  * @Date: 2026-07-18 11:35:16
  * @LastEditors: zhishang06 2494841771@qq.com
- * @LastEditTime: 2026-07-24 19:13:29
+ * @LastEditTime: 2026-07-26 10:23:42
  * @FilePath: \mas_embedded_threadx\apps\infantry4\single_board\gimbal_func\gimbal_func.c
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -96,10 +96,11 @@ void gimbal_init(void)
                                                 .angle_feedback_source = 1,
                                                 .speed_feedback_source = 1,
                                                 .loop_type             = ANGLE_LOOP,
+                                                .motor_reverse_flag    = 1,
                                             },
                                         .motor_init_info = {.motor_type = DM4310, .gear_ratio = 10, .max_torque = 10, .torque_constant = 0.093f}};
                                        pitch_motor  = Motor_DM_Init(&pitch_config, DM_MIT_MODE);
-      pitch_motor->base.controller.feedforward_torque = 0.07f;   
+      pitch_motor->base.controller.feedforward_torque = 0.05f;   
 }
 
 void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
@@ -118,10 +119,12 @@ void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
              Motor_DM_SetRef(pitch_motor, gimbal_cmd->pitch * DEGREE_2_RAD);
             
         }
-        else
+        else if (gimbal_cmd->gimbal_mode == gimbal_auto_mode)
         {
-            Motor_DJI_Stop(yaw_motor);
-             Motor_DM_Stop(pitch_motor);
+                Motor_DJI_Start(yaw_motor);
+                Motor_DM_Start(pitch_motor);
+                Motor_DJI_SetRef(yaw_motor, (gimbal_cmd->yaw * DEGREE_2_RAD));
+                Motor_DM_SetRef(pitch_motor, -(gimbal_cmd->pitch * DEGREE_2_RAD));
         }
     }
     else

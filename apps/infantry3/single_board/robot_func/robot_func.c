@@ -39,21 +39,21 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
         {
             if (dt7_custom->sw2 == DT7_SW_UP)
             {
-                Chassis_Ctrl->chassis_mode = chassis_rotate;
+                Chassis_Ctrl->chassis_mode = chassis_rotate;// 旋转模式
             }
             else if (dt7_custom->sw2 == DT7_SW_MID)
             {
-                Chassis_Ctrl->chassis_mode = chassis_follow_gimbal_yaw;
+                Chassis_Ctrl->chassis_mode = chassis_follow_gimbal_yaw;// 跟随云台角度模式
             }
             else if (dt7_custom->sw2 == DT7_SW_DOWN)
             {
-                Chassis_Ctrl->chassis_mode = chassis_rotate_reverse;
+                Chassis_Ctrl->chassis_mode = chassis_rotate_reverse;// 反向旋转模式
             }
 
             /* 云台控制部分 */
             if (dt7_custom->sw1 == DT7_SW_MID)
             {
-                Gimbal_Ctrl->gimbal_mode = gimbal_gyro_mode;
+                Gimbal_Ctrl->gimbal_mode = gimbal_gyro_mode;// 陀螺仪模式
                 Gimbal_Ctrl->yaw -= 0.001f * (float)(Module_Remote_get_channel(3));
                 Gimbal_Ctrl->pitch += 0.001f * (float)(Module_Remote_get_channel(4));
                 VAL_LIMIT(Gimbal_Ctrl->pitch, PITCH_MIN_ANGLE, PITCH_MAX_ANGLE);
@@ -85,11 +85,11 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
                 }
                 else if (dt7_custom->wheel > 0)
                 {
-                    Shoot_Ctrl->load_mode = load_reverse;
+                    Shoot_Ctrl->load_mode = load_reverse;// 反向加载模式
                 }
                 else if (dt7_custom->wheel < 0)
                 {
-                    Shoot_Ctrl->load_mode = load_burstfire;
+                    Shoot_Ctrl->load_mode = load_burstfire;// 爆发加载模式
                 }
             }
         }
