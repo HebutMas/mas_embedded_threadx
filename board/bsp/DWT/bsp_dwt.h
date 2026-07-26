@@ -41,6 +41,16 @@
     LOG_I("[PERF] %s: %lu cycles, %.2f us", function_name, __dwt_cycles, __dwt_us_time);                                                             \
     }                                                                                                                                                \
     while (0)
+#elif defined(STM32F105xC)
+#include "stm32f105xc.h"
+
+#define BSP_DWT_MEASURE_START()
+#define BSP_DWT_MEASURE_END(function_name)
+#elif defined(STM32F103xB)
+#include "stm32f103xb.h"
+
+#define BSP_DWT_MEASURE_START()
+#define BSP_DWT_MEASURE_END(function_name)
 #endif
 
 /**

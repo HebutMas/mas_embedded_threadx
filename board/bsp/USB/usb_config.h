@@ -26,7 +26,7 @@
 /* attribute data into no cache ram */
 #if defined(STM32H723xx)
 #define USB_NOCACHE_RAM_SECTION __attribute__((section(".RAM_D2")))
-#elif defined(STM32F407xx)
+#elif defined(STM32F407xx) || defined(STM32F105xC) || defined(STM32F103xB)
 #define USB_NOCACHE_RAM_SECTION __attribute__((section(".ram")))
 #endif
 
