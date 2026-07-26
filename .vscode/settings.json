@@ -2,8 +2,8 @@
     "cmake.configureOnOpen": false,
     "cmake.automaticReconfigure": false,
     "cmake.configureOnEdit": false,
-    "cortex-debug.armToolchainPath": "E:/RM/tool-chains/arm-gnu-toolchain/bin",  // ARM 工具链路径,自己解压的路径
-    "cortex-debug.JLinkGDBServerPath": "D:/jlink/JLink/JLinkGDBServer.exe",  // JLink GDB Server 路径
+    "cortex-debug.armToolchainPath": "E:/stm32/STM32CubeCLT_1.20.0/GNU-tools-for-STM32/bin",
+    "cortex-debug.JLinkGDBServerPath": "E:/stm32/IDE/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.jlink.win32_2.5.0.202506031126/tools/bin/JLinkGDBServer.exe",
     // 是否检查插件冲突
     "clangd.detectExtensionConflicts": true,
     "clangd.arguments": [
@@ -21,7 +21,7 @@
         "--function-arg-placeholders=false",
         // compelie_commands.json 文件的目录位置
         "--compile-commands-dir=build",
-        "--query-driver=E:/RM/tool-chains/arm-gnu-toolchain/bin/arm-none-eabi-gcc.exe"  // ARM 工具链路径,自己解压的路径，到arm-none-eabi-gcc.exe即可
+        "--query-driver=E:/stm32/STM32CubeCLT_1.20.0/GNU-tools-for-STM32/bin/arm-none-eabi-gcc.exe"
     ],
 }
 

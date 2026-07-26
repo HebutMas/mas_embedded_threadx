@@ -8,7 +8,7 @@ set "SCRIPT_DIR=%~dp0"
 set "WORKSPACE_ROOT=%SCRIPT_DIR%.."
 
 :: J-Link installation path
-set "JLINK_DIR=D:\jlink\JLink"
+set "JLINK_DIR=E:\stm32\IDE\STM32CubeIDE_1.19.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.jlink.win32_2.5.0.202506031126\tools\bin"
 
 :: Validate parameters
 if "%BOARD%"=="" exit /b 1

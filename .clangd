@@ -1,18 +1,14 @@
 CompileFlags:
-  Add:
-    - --target=arm-none-eabi
-    - -mthumb
-    - -mfloat-abi=hard
-    - -std=gnu11
-    - -ffreestanding
-    - -fno-common
-    - -fno-exceptions
+  CompilationDatabase: build
+
 Completion:
   AllScopes: true
+
 InlayHints:
   Enabled: true
   ParameterNames: true
   DeducedTypes: true
   Designators: true
+
 Hover:
   ShowAKA: true

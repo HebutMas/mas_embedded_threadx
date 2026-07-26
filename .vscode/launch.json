@@ -5,17 +5,18 @@
         {
             "name": "DJI_C_Daplink",
             "cwd": "${workspaceFolder}",
-            "executable": "${workspaceFolder}/build/dji_c.elf", 
+            "executable": "${workspaceFolder}/build/dji_c.elf",
             "request": "launch",
             "type": "cortex-debug",
             "device": "STM32F407IG",
             "svdFile": "${workspaceFolder}/board/dji_c/STM32F407.svd",
-            "servertype": "openocd", 
+            "servertype": "openocd",
             "configFiles": [
                 "interface/cmsis-dap.cfg",
                 "target/stm32f4x.cfg"
             ],
-            "runToEntryPoint": "main", 
+            "runToEntryPoint": "main",
+            "armToolchainPath": "E:/stm32/STM32CubeCLT_1.20.0/GNU-tools-for-STM32/bin",
             "preLaunchTask": "Build dji_c",
             "liveWatch": {
                 "enabled": true,
@@ -38,7 +39,7 @@
         {
             "name": "DJI_C_STlink",
             "cwd": "${workspaceFolder}",
-            "executable": "${workspaceFolder}/build/dji_c.elf", 
+            "executable": "${workspaceFolder}/build/dji_c.elf",
             "request": "launch",
             "type": "cortex-debug",
             "device": "STM32F407IG",
@@ -48,7 +49,8 @@
                 "interface/stlink.cfg",
                 "target/stm32f4x.cfg"
             ],
-            "runToEntryPoint": "main", 
+            "runToEntryPoint": "main",
+            "armToolchainPath": "E:/stm32/STM32CubeCLT_1.20.0/GNU-tools-for-STM32/bin",
             "preLaunchTask": "Build dji_c",
             "liveWatch": {
                 "enabled": true,
@@ -71,17 +73,18 @@
         {
             "name": "Damiao_h7_Daplink",
             "cwd": "${workspaceFolder}",
-            "executable": "${workspaceFolder}/build/damiao_h7.elf", 
+            "executable": "${workspaceFolder}/build/damiao_h7.elf",
             "request": "launch",
             "type": "cortex-debug",
             "device": "STM32H723VG",
             "svdFile": "${workspaceFolder}/board/damiao_h7/STM32H723.svd",
-            "servertype": "openocd", 
+            "servertype": "openocd",
             "configFiles": [
                 "interface/cmsis-dap.cfg",
                 "target/stm32h7x.cfg"
             ],
-            "runToEntryPoint": "main", 
+            "runToEntryPoint": "main",
+            "armToolchainPath": "E:/stm32/STM32CubeCLT_1.20.0/GNU-tools-for-STM32/bin",
             "preLaunchTask": "Build damiao_h7",
             "liveWatch": {
                 "enabled": true,
@@ -104,7 +107,7 @@
         {
             "name": "Damiao_h7_STlink",
             "cwd": "${workspaceFolder}",
-            "executable": "${workspaceFolder}/build/damiao_h7.elf", 
+            "executable": "${workspaceFolder}/build/damiao_h7.elf",
             "request": "launch",
             "type": "cortex-debug",
             "device": "STM32H723VG",
@@ -114,7 +117,8 @@
                 "interface/stlink.cfg",
                 "target/stm32h7x.cfg"
             ],
-            "runToEntryPoint": "main", 
+            "runToEntryPoint": "main",
+            "armToolchainPath": "E:/stm32/STM32CubeCLT_1.20.0/GNU-tools-for-STM32/bin",
             "preLaunchTask": "Build damiao_h7",
             "liveWatch": {
                 "enabled": true,

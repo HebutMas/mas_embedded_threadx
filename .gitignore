@@ -13,3 +13,8 @@ cmake-build-*/
 .DS_Store
 Thumbs.db
 desktop.ini
+.vscode/tasks.json
+.vscode/settings.json
+.vscode/launch.json
+修改记录.md
+.clangd
