@@ -90,6 +90,7 @@ if(MODULE_MOTOR)
         MOTOR/DAMIAO/motor_damiao.c
         MOTOR/SERVO/motor_servo.c
         MOTOR/ZDT_STEPMOTOR/motor_zdt.c
+        MOTOR/LK/motor_lk.c
     )
     # 底盘运动学：只有单板/底盘板才需要
     if(BOARD STREQUAL "single" OR BOARD STREQUAL "chassis")
@@ -102,6 +103,7 @@ if(MODULE_MOTOR)
         ${CMAKE_CURRENT_SOURCE_DIR}/MOTOR/SERVO
         ${CMAKE_CURRENT_SOURCE_DIR}/MOTOR/ZDT_STEPMOTOR
         ${CMAKE_CURRENT_SOURCE_DIR}/MOTOR/POWER_CONTROL
+        ${CMAKE_CURRENT_SOURCE_DIR}/MOTOR/LK
     )
 endif()
 
