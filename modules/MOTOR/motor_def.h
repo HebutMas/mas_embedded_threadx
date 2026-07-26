@@ -85,6 +85,8 @@ typedef enum
     DM8009,
     DM3507,
     DM3519,
+    /* 翎控电机 */
+    MG8016,
     /* 舵机 */
     SERVO_GENERIC,
     /* UART 电机 */
