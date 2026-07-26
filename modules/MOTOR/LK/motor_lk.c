@@ -48,31 +48,31 @@ static void Motor_LK_Cmd(LK_Motor_t *motor, uint8_t cmd)
     BSP_DWT_Delay(0.0002f); /* 防止can总线拥挤 */
 }
 /* 读取电机状态2 */
-void Motor_LK_ReadStatus2(LK_Motor_t *motor)
+static void Motor_LK_ReadStatus2(LK_Motor_t *motor)
 {
     Motor_LK_Cmd(motor, LK_CMD_READ_STATUS2);
 }
 
 /* 清除错误标志 */
-void Motor_LK_ClearError(LK_Motor_t *motor)
+static void Motor_LK_ClearError(LK_Motor_t *motor)
 {
     Motor_LK_Cmd(motor, LK_CMD_CLEAR_ERROR);
 }
 
 /* 电机关闭 */
-void Motor_LK_MotorOff(LK_Motor_t *motor)
+static void Motor_LK_MotorOff(LK_Motor_t *motor)
 {
     Motor_LK_Cmd(motor, LK_CMD_MOTOR_OFF);
 }
 
 /* 电机运行 */
-void Motor_LK_MotorRun(LK_Motor_t *motor)
+static void Motor_LK_MotorRun(LK_Motor_t *motor)
 {
     Motor_LK_Cmd(motor, LK_CMD_MOTOR_RUN);
 }
 
 /* 电机停止 */
-void Motor_LK_MotorStop(LK_Motor_t *motor)
+static void Motor_LK_MotorStop(LK_Motor_t *motor)
 {
     Motor_LK_Cmd(motor, LK_CMD_MOTOR_STOP);
 }
@@ -350,7 +350,7 @@ LK_Motor_t *Motor_LK_Init(Motor_Init_Config_s *config, uint32_t LK_Mode_type)
     /* 离线检测 */
     motor->base.offline_dev = Module_Offline_register(&config->offline_init_config);
 
-    //上电后默认就是使能状态
+    //上电后默认就是使能,开启状态
     Motor_LK_ClearError(motor);
     Motor_LK_MotorRun(motor);
     /* 注册到全局链表 */
