@@ -304,6 +304,7 @@ void Module_BMI088_init(void)
     uint8_t flash_buf[sizeof(BMI088_Cali_Offset_t) + 2] = {0};
     BSP_FLASH_Read_Buffer(flash_buf, sizeof(flash_buf));
 
+    //if(1)如果需要重新标定数据
     if (flash_buf[sizeof(BMI088_Cali_Offset_t) + 1] != 0xAA)
     {
         /* 无有效标定数据, 执行标定 */
