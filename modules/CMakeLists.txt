@@ -85,6 +85,7 @@ if(MODULE_MOTOR)
     list(APPEND _module_sources
         MOTOR/module_motor.c
         MOTOR/motor_base.c
+        MOTOR/motor_algorithm.c
         MOTOR/DJI/motor_dji.c
         MOTOR/POWER_CONTROL/power_control.c
         MOTOR/DAMIAO/motor_damiao.c

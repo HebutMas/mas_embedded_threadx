@@ -118,14 +118,14 @@ void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
             switch (gimbal_cmd->gimbal_mode)
             {
             case gimbal_zero_force:
-                Motor_DJI_Stop(yaw_motor);
-                Motor_DM_Stop(pitch_motor);
+                Motor_Stop((Motor_Base *)yaw_motor);
+                Motor_Stop((Motor_Base *)pitch_motor);
                 break;
             case gimbal_gyro_mode:
-                Motor_DJI_Start(yaw_motor);
-                Motor_DM_Start(pitch_motor);
-                Motor_DJI_SetRef(yaw_motor, (gimbal_cmd->yaw * DEGREE_2_RAD));
-                Motor_DM_SetRef(pitch_motor, gimbal_cmd->pitch * DEGREE_2_RAD);
+                Motor_Start((Motor_Base *)yaw_motor);
+                Motor_Start((Motor_Base *)pitch_motor);
+                Motor_SetRef((Motor_Base *)yaw_motor, (gimbal_cmd->yaw * DEGREE_2_RAD));
+                Motor_SetRef((Motor_Base *)pitch_motor, gimbal_cmd->pitch * DEGREE_2_RAD);
                 break;
             case gimbal_auto_mode:
                 break;
@@ -133,8 +133,8 @@ void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
         }
         else
         {
-            Motor_DJI_Stop(yaw_motor);
-            Motor_DM_Stop(pitch_motor);
+            Motor_Stop((Motor_Base *)yaw_motor);
+            Motor_Stop((Motor_Base *)pitch_motor);
         }
     }
     // 数据反馈

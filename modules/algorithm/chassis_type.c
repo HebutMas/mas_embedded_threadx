@@ -98,11 +98,11 @@ void Chassis_Swerve_Calc(DJI_Motor_t *motors[8], const Chassis_Swerve_Config_s *
             last_target_angle_rad[i] = target_steer_rad;
         }
 
-        Motor_DJI_SetRef(motors[i], target_speed_rad * (float)drct_factor);
+        Motor_SetRef((Motor_Base *)motors[i], target_speed_rad * (float)drct_factor);
 
         float delta = target_steer_rad - motors[i + 4]->base.measure.total_angle;
         AngleLoop_f(&delta, TWO_PI);
-        Motor_DJI_SetRef(motors[i + 4], motors[i + 4]->base.measure.total_angle + delta);
+        Motor_SetRef((Motor_Base *)motors[i + 4], motors[i + 4]->base.measure.total_angle + delta);
     }
 }
 
@@ -117,7 +117,7 @@ void Chassis_Mecanum_Calc(DJI_Motor_t *motors[4], const Chassis_Diff_Config_s *c
     wheel_speed[1] = (+vx + vy - vw * L) * speed_factor;
     wheel_speed[2] = (+vx - vy + vw * L) * speed_factor;
 
-    for (int i = 0; i < 4; i++) Motor_DJI_SetRef(motors[i], wheel_speed[i]);
+    for (int i = 0; i < 4; i++) Motor_SetRef((Motor_Base *)motors[i], wheel_speed[i]);
 }
 
 void Chassis_Omni_Calc(DJI_Motor_t *motors[4], const Chassis_Diff_Config_s *cfg, float vx, float vy, float vw)
@@ -133,7 +133,7 @@ void Chassis_Omni_Calc(DJI_Motor_t *motors[4], const Chassis_Diff_Config_s *cfg,
     wheel_speed[1] = (-vx + vy - rot_diff) * speed_factor;
     wheel_speed[2] = (-vx - vy + rot_diff) * speed_factor;
 
-    for (int i = 0; i < 4; i++) Motor_DJI_SetRef(motors[i], wheel_speed[i]);
+    for (int i = 0; i < 4; i++) Motor_SetRef((Motor_Base *)motors[i], wheel_speed[i]);
 }
 
 

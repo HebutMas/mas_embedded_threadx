@@ -33,20 +33,4 @@ typedef struct
  */
 Servo_Motor_t *Motor_Servo_Init(Motor_Init_Config_s *config, uint16_t min_pulse, uint16_t max_pulse, float min_angle, float max_angle);
 
-/**
- * @brief 舵机使能 (启动 PWM 输出)
- */
-void Motor_Servo_Start(Servo_Motor_t *motor);
-
-/**
- * @brief 舵机停止 (停止 PWM 输出)
- */
-void Motor_Servo_Stop(Servo_Motor_t *motor);
-
-/**
- * @brief 设置参考角度
- * @param ref 目标角度 (度)
- */
-void Motor_Servo_SetRef(Servo_Motor_t *motor, float ref_deg);
-
 #endif /* _MOTOR_SERVO_H_ */

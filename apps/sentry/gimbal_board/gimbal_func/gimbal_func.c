@@ -188,30 +188,30 @@ void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
             switch (gimbal_cmd->gimbal_mode)
             {
             case gimbal_zero_force:
-                Motor_DJI_Stop(big_yaw_motor);
-                Motor_DJI_Stop(small_yaw_motor);
-                Motor_DM_Stop(pitch_motor);
+                Motor_Stop((Motor_Base *)big_yaw_motor);
+                Motor_Stop((Motor_Base *)small_yaw_motor);
+                Motor_Stop((Motor_Base *)pitch_motor);
                 break;
             case gimbal_gyro_mode:
-                Motor_DJI_Start(big_yaw_motor);
-                Motor_DJI_Start(small_yaw_motor);
-                Motor_DM_Start(pitch_motor);
+                Motor_Start((Motor_Base *)big_yaw_motor);
+                Motor_Start((Motor_Base *)small_yaw_motor);
+                Motor_Start((Motor_Base *)pitch_motor);
                 // 大小 yaw 协调控制
-                Motor_DJI_SetRef(big_yaw_motor, big_yaw_offset);
-                Motor_DJI_SetRef(small_yaw_motor, (gimbal_cmd->yaw * DEGREE_2_RAD) + auto_yaw_offset);
-                Motor_DM_SetRef(pitch_motor, gimbal_cmd->pitch * DEGREE_2_RAD);
+                Motor_SetRef((Motor_Base *)big_yaw_motor, big_yaw_offset);
+                Motor_SetRef((Motor_Base *)small_yaw_motor, (gimbal_cmd->yaw * DEGREE_2_RAD) + auto_yaw_offset);
+                Motor_SetRef((Motor_Base *)pitch_motor, gimbal_cmd->pitch * DEGREE_2_RAD);
                 search_yaw_angle = ins->YawTotalAngle_rad;
                 break;
             case gimbal_auto_mode:
-                Motor_DJI_Start(big_yaw_motor);
-                Motor_DJI_Start(small_yaw_motor);
-                Motor_DM_Start(pitch_motor);
+                Motor_Start((Motor_Base *)big_yaw_motor);
+                Motor_Start((Motor_Base *)small_yaw_motor);
+                Motor_Start((Motor_Base *)pitch_motor);
                 if (gimbal_cmd->auto_search == 0)
                 {
                     //   大小 yaw 协调控制 - 目标已找到
-                    Motor_DJI_SetRef(big_yaw_motor, big_yaw_offset);
-                    Motor_DJI_SetRef(small_yaw_motor, gimbal_cmd->yaw);
-                    Motor_DM_SetRef(pitch_motor, gimbal_cmd->pitch);
+                    Motor_SetRef((Motor_Base *)big_yaw_motor, big_yaw_offset);
+                    Motor_SetRef((Motor_Base *)small_yaw_motor, gimbal_cmd->yaw);
+                    Motor_SetRef((Motor_Base *)pitch_motor, gimbal_cmd->pitch);
                     // 目标找到，重置搜索状态，记录当前偏移量
                     search_yaw_angle  = gimbal_cmd->yaw;
                     search_pitch_time = 0.0f;
@@ -227,26 +227,26 @@ void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
                     search_pitch_time += SEARCH_TASK_PERIOD_S;
                     float search_pitch_ref = SEARCH_PITCH_AMPLITUDE * sinf(2.0f * PI * SEARCH_PITCH_FREQ * search_pitch_time);
                     search_pitch_ref       = fabsf(search_pitch_ref);
-                    Motor_DJI_SetRef(big_yaw_motor, big_yaw_offset);
-                    Motor_DJI_SetRef(small_yaw_motor, search_yaw_angle);
-                    Motor_DM_SetRef(pitch_motor, -search_pitch_ref);
+                    Motor_SetRef((Motor_Base *)big_yaw_motor, big_yaw_offset);
+                    Motor_SetRef((Motor_Base *)small_yaw_motor, search_yaw_angle);
+                    Motor_SetRef((Motor_Base *)pitch_motor, -search_pitch_ref);
                     // 实时更新偏移量
                     auto_yaw_offset = ins->YawTotalAngle_rad;
                 }
                 else if (gimbal_cmd->auto_search == 2)
                 {
-                    Motor_DJI_SetRef(big_yaw_motor, big_yaw_offset);
-                    Motor_DJI_SetRef(small_yaw_motor, (float)ins->YawRoundCount * 360.0f * DEGREE_2_RAD);
-                    Motor_DM_SetRef(pitch_motor, 0);
+                    Motor_SetRef((Motor_Base *)big_yaw_motor, big_yaw_offset);
+                    Motor_SetRef((Motor_Base *)small_yaw_motor, (float)ins->YawRoundCount * 360.0f * DEGREE_2_RAD);
+                    Motor_SetRef((Motor_Base *)pitch_motor, 0);
                 }
                 break;
             }
         }
         else
         {
-            Motor_DJI_Stop(big_yaw_motor);
-            Motor_DJI_Stop(small_yaw_motor);
-            Motor_DM_Stop(pitch_motor);
+            Motor_Stop((Motor_Base *)big_yaw_motor);
+            Motor_Stop((Motor_Base *)small_yaw_motor);
+            Motor_Stop((Motor_Base *)pitch_motor);
         }
     }
     // 数据反馈
