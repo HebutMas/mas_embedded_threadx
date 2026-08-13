@@ -211,7 +211,7 @@ void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
                     //   大小 yaw 协调控制 - 目标已找到
                     Motor_DJI_SetRef(big_yaw_motor, big_yaw_offset);
                     Motor_DJI_SetRef(small_yaw_motor, gimbal_cmd->yaw);
-                    Motor_DM_SetRef(pitch_motor, gimbal_cmd->pitch);
+                    Motor_DM_SetRef(pitch_motor, gimbal_cmd->pitch);//这里的角度在robot_control内转换为弧度
                     // 目标找到，重置搜索状态，记录当前偏移量
                     search_yaw_angle  = gimbal_cmd->yaw;
                     search_pitch_time = 0.0f;

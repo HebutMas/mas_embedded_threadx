@@ -35,6 +35,7 @@ static void robot_control_task(ULONG thread_input)
 {
     while (1)
     {
+
         /* 遥控器控制输入 */
         RemoteControlSet(&chassis_cmd, &shoot_cmd, &gimbal_cmd);
 
@@ -46,7 +47,8 @@ static void robot_control_task(ULONG thread_input)
         send_packet.q[3] = ins->q[3];
         Module_Vision_Send(&send_packet, TX_NO_WAIT);
         receive_packet = Module_Vision_Receive();
-
+        /* 自动模式 */
+        gimbal_auto_func(&chassis_cmd,&shoot_cmd,&gimbal_cmd,ins,receive_packet);
         /* 云台控制 */
         gimbal_func(&gimbal_cmd, &yaw_ecd);
         /* 发射机构控制 */
