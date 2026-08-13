@@ -10,7 +10,8 @@
 #define _ROBOT_FUNC_H_
 
 #include "sentry_def.h"
-
+#include "module_vision.h"
+#include "module_ins.h"
 /**
  * @brief 计算相对于对齐角度的最小旋转角度，返回编码器差值
  * @param getyawangle 当前编码器值 (0 - 8191)
@@ -25,5 +26,16 @@ int16_t CalcOffsetAngle(float getyawangle);
  * @param Gimbal_Ctrl 云台控制命令结构体指针
  */
 void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_Ctrl, Gimbal_Ctrl_Cmd_t *Gimbal_Ctrl);
+
+/**
+ * @brief 根据云台控制命令和接收到的视觉数据执行自动模式下的云台控制
+ * @param Chassis_Ctrl 底盘控制命令结构体指针
+ * @param Shoot_Ctrl 发射机构控制命令结构体指针
+ * @param Gimbal_Ctrl 云台控制命令结构体指针
+ * @param Ins 姿态指针
+ * @param receive_packet 接收到的视觉数据包指针
+ */
+void gimbal_auto_func(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_Ctrl, Gimbal_Ctrl_Cmd_t *Gimbal_Ctrl,const Ins_t *Ins,
+                      ReceivePacket *receive_packet);
 
 #endif // _ROBOT_FUNC_H_
