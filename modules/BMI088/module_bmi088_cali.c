@@ -239,6 +239,13 @@ int8_t Module_BMI088_calibrate_bmi088_offset(Bmi088_device_t *dev)
 
     LOG_I("Gyro offsets: X=%f Y=%f Z=%f", (double)cali.GyroOffset[0], (double)cali.GyroOffset[1], (double)cali.GyroOffset[2]);
 
+    /* Flash 写入耗时较长, 写后喂狗防止再次复位 */
+#if defined(STM32H723xx)
+    HAL_IWDG_Refresh(&hiwdg1);
+#elif defined(STM32F407xx)
+    HAL_IWDG_Refresh(&hiwdg);
+#endif
+
     BSP_LED_Show(LED_Green);
     BSP_DWT_Delay(0.5f);
     return status;

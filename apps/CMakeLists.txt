@@ -7,7 +7,7 @@ set(_robot_board_dir ${_robot_base_dir}/${BOARD}_board)
 # 收集该机器人板型目录下所有 .c 源文件
 set(_robot_sources "")
 if(EXISTS ${_robot_board_dir})
-    file(GLOB_RECURSE _robot_sources ${_robot_board_dir}/*.c)
+    file(GLOB_RECURSE _robot_sources CONFIGURE_DEPENDS ${_robot_board_dir}/*.c)
 endif()
 
 # 收集所有子目录作为头文件包含路径
@@ -17,7 +17,7 @@ if(EXISTS ${_robot_base_dir})
     list(APPEND _robot_includes ${_robot_base_dir})
 endif()
 if(EXISTS ${_robot_board_dir})
-    file(GLOB_RECURSE _robot_headers ${_robot_board_dir}/*.h)
+    file(GLOB_RECURSE _robot_headers CONFIGURE_DEPENDS ${_robot_board_dir}/*.h)
     list(APPEND _robot_includes ${_robot_board_dir})
     foreach(_h ${_robot_headers})
         get_filename_component(_dir ${_h} DIRECTORY)
@@ -38,6 +38,7 @@ target_compile_options(app PRIVATE -O2 -include module_config.h)
 target_include_directories(app PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${_robot_includes}
+    ${_generated_dir}
 )
 
 target_link_libraries(app PUBLIC stm32cubemx azrtos::threadx utils bsp CMSISDSP modules)

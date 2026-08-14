@@ -17,6 +17,11 @@
  */
 static uint8_t BSP_FLASH_Erase_Sector(void)
 {
+    /* 清除残留错误标志，防止上游代码遗留的 PGSERR/PGPERR 导致 HAL 返回错误 */
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_OPERR |
+                           FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR |
+                           FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
+
     FLASH_EraseInitTypeDef erase = {
         .TypeErase    = FLASH_TYPEERASE_SECTORS,
         .VoltageRange = FLASH_VOLTAGE_RANGE_3,
@@ -41,7 +46,7 @@ uint8_t BSP_FLASH_Write_Buffer(uint8_t *buffer, uint32_t length)
 
     HAL_FLASH_Unlock();
 
-    /* 擦除扇区 */
+    /* 擦除扇区（Erase_Sector 内部会清除残留错误标志） */
     if (BSP_FLASH_Erase_Sector() != 0)
     {
         HAL_FLASH_Lock();

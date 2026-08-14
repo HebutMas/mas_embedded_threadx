@@ -5,12 +5,12 @@ set(_module_sources
     algorithm/user_lib.c
     algorithm/crc_rm.c
     algorithm/lqr.c
-    algorithm/chassis_type.c
 )
 
-# 生成的头文件目录 (board binary dir/generated)
-get_filename_component(_board_binary_dir ${CMAKE_CURRENT_BINARY_DIR} DIRECTORY)
-set(_generated_dir ${_board_binary_dir}/generated)
+# _generated_dir 由 cmake/board_common.cmake 设置，随目录作用域继承到这里
+if(NOT DEFINED _generated_dir)
+    message(FATAL_ERROR "_generated_dir is not defined; modules must be added via cmake/board_common.cmake")
+endif()
 
 set(_module_includes
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -90,7 +90,12 @@ if(MODULE_MOTOR)
         MOTOR/DAMIAO/motor_damiao.c
         MOTOR/SERVO/motor_servo.c
         MOTOR/ZDT_STEPMOTOR/motor_zdt.c
+        MOTOR/LK/motor_lk.c
     )
+    # 底盘运动学：只有单板/底盘板才需要
+    if(BOARD STREQUAL "single" OR BOARD STREQUAL "chassis")
+        list(APPEND _module_sources algorithm/chassis_type.c)
+    endif()
     list(APPEND _module_includes
         ${CMAKE_CURRENT_SOURCE_DIR}/MOTOR
         ${CMAKE_CURRENT_SOURCE_DIR}/MOTOR/DJI
@@ -98,6 +103,7 @@ if(MODULE_MOTOR)
         ${CMAKE_CURRENT_SOURCE_DIR}/MOTOR/SERVO
         ${CMAKE_CURRENT_SOURCE_DIR}/MOTOR/ZDT_STEPMOTOR
         ${CMAKE_CURRENT_SOURCE_DIR}/MOTOR/POWER_CONTROL
+        ${CMAKE_CURRENT_SOURCE_DIR}/MOTOR/LK
     )
 endif()
 

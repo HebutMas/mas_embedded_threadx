@@ -77,21 +77,21 @@ set(VL53L0X_TASK_PRIORITY   10)
 set(VL53L0X_TASK_INTERVAL_MS 20)
 ```
 
-### 6. 修改 apps/generate_headers.cmake
+### 6. 修改 apps/module_config.h.in
 
-在 `module_config.h` 的生成内容中添加该模块的参数宏导出：
+在 `apps/module_config.h.in` 模板中添加该模块的参数宏导出：
 
-```cmake
+```c
 /* VL53L0X 参数 */
-#define VL53L0X_TASK_STACK_SIZE ${VL53L0X_TASK_STACK_SIZE}
-#define VL53L0X_TASK_PRIORITY   ${VL53L0X_TASK_PRIORITY}
+#define VL53L0X_TASK_STACK_SIZE @VL53L0X_TASK_STACK_SIZE@
+#define VL53L0X_TASK_PRIORITY   @VL53L0X_TASK_PRIORITY@
 ```
 
-> 若参数为可选硬件句柄（如 `VL53L0X_UART`），使用 `_gen_cmakedefine` 模拟 `#cmakedefine` 行为：
-> ```cmake
-> _gen_cmakedefine(_VL53L0X_UART VL53L0X_UART VL53L0X_UART)
+> 若参数为可选硬件句柄（如 `VL53L0X_UART`），用 CMake 原生的 `#cmakedefine`：
+> ```c
+> #cmakedefine VL53L0X_UART @VL53L0X_UART@
 > ```
-> 然后在 `module_config.h` 写入内容中引用 `${_VL53L0X_UART}`。
+> 变量未定义或为空时输出 `/* #undef VL53L0X_UART */`，否则输出 `#define`。
 
 ### 7. 在 robot.cmake 中使能/覆盖
 
