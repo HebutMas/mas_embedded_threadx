@@ -157,7 +157,7 @@ void gimbal_auto_func(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
     if (receive_packet->nav_state == 1)
     {
         Chassis_Ctrl->vx = receive_packet->vx;
-        Chassis_Ctrl->vy = receive_packet->vy;
+        Chassis_Ctrl->vy = -receive_packet->vy;
     }
     else
     {
