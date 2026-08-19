@@ -88,12 +88,11 @@ typedef struct
 /* 板间通讯结构体 */
 typedef struct
 {
-    int8_t  vx;           /* X速度, -10 ～ +10 */
-    int8_t  vy;           /* Y速度, -10 ～ +10 */
+    int16_t vx;           /* 底盘系 X 速度, mm/s */
+    int16_t vy;           /* 底盘系 Y 速度, mm/s */
     int8_t  wz;           /* 旋转速度, -10 ～ +10 */
     int16_t offset_angle; /* yaw偏移角度 */
     uint8_t chassis_mode; /* 底盘控制指令 (chassis_mode_e) */
-    int8_t  reserved[2];  /* 填充至8字节 */
 } GimbalToChassis_cmd_t;
 _Static_assert(sizeof(GimbalToChassis_cmd_t) == 8, "GimbalToChassis_cmd_t must be 8 bytes");
 
