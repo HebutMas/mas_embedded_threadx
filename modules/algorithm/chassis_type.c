@@ -1,5 +1,6 @@
 #include "chassis_type.h"
 #include "motor_dji.h"
+#include "user_lib.h"
 #include <math.h>
 
 #define TWO_PI  (2.0f * PI)
