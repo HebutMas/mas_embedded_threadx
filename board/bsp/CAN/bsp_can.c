@@ -42,7 +42,7 @@ static int8_t fdcan_config_filter(FDCAN_HandleTypeDef *hfdcan, uint32_t rx_id, u
     return 0;
 }
 
-#elif defined(STM32F407xx)
+#elif defined(STM32F407xx) || defined(STM32F105xC)
 static uint8_t g_can1_filter_idx;
 static uint8_t g_can2_filter_idx = 14;
 
@@ -80,6 +80,35 @@ static bool can_config_filter(CAN_HandleTypeDef *hcan, uint32_t rx_id, uint8_t *
             g_can1_filter_idx--;
         else
             g_can2_filter_idx--;
+        return false;
+    }
+    if (out_bank_index) *out_bank_index = filter_bank;
+    return true;
+}
+#elif defined(STM32F103xB)
+static uint8_t g_can_filter_idx;
+
+static bool can_config_filter(CAN_HandleTypeDef *hcan, uint32_t rx_id, uint8_t *out_bank_index)
+{
+    uint8_t filter_bank;
+    if (g_can_filter_idx >= 14) return false;
+    filter_bank = g_can_filter_idx++;
+
+    CAN_FilterTypeDef cfg = {
+        .FilterMode           = CAN_FILTERMODE_IDMASK,
+        .FilterScale          = CAN_FILTERSCALE_16BIT,
+        .FilterFIFOAssignment = (rx_id & 1) ? CAN_FILTER_FIFO0 : CAN_FILTER_FIFO1,
+        .SlaveStartFilterBank = 14,
+        .FilterIdLow          = rx_id << 5,
+        .FilterMaskIdLow      = 0x7FF << 5,
+        .FilterIdHigh         = rx_id << 5,
+        .FilterMaskIdHigh     = 0x7FF << 5,
+        .FilterBank           = filter_bank,
+        .FilterActivation     = CAN_FILTER_ENABLE,
+    };
+    if (HAL_CAN_ConfigFilter(hcan, &cfg) != HAL_OK)
+    {
+        g_can_filter_idx--;
         return false;
     }
     if (out_bank_index) *out_bank_index = filter_bank;
@@ -135,7 +164,10 @@ Can_Device *BSP_CAN_Device_Init(Can_Device_Init_Config_s *config)
 #if defined(STM32H723xx)
         HAL_FDCAN_ActivateNotification(config->hcan, FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0);
         HAL_FDCAN_Start(config->hcan);
-#elif defined(STM32F407xx)
+#elif defined(STM32F407xx) || defined(STM32F105xC)
+        HAL_CAN_ActivateNotification(config->hcan, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_RX_FIFO1_MSG_PENDING);
+        HAL_CAN_Start(config->hcan);
+#elif defined(STM32F103xB)
         HAL_CAN_ActivateNotification(config->hcan, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_RX_FIFO1_MSG_PENDING);
         HAL_CAN_Start(config->hcan);
 #endif
@@ -177,7 +209,14 @@ Can_Device *BSP_CAN_Device_Init(Can_Device_Init_Config_s *config)
         BSP_MEM_FREE(dev);
         return NULL;
     }
-#elif defined(STM32F407xx)
+#elif defined(STM32F407xx) || defined(STM32F105xC)
+    if (!can_config_filter(config->hcan, config->rx_id, &dev->filter_bank_index))
+    {
+        LOG_E("CAN filter failed");
+        BSP_MEM_FREE(dev);
+        return NULL;
+    }
+#elif defined(STM32F103xB)
     if (!can_config_filter(config->hcan, config->rx_id, &dev->filter_bank_index))
     {
         LOG_E("CAN filter failed");
@@ -266,7 +305,7 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
     if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) can_fdcan_rx_callback(hfdcan, FDCAN_RX_FIFO1);
 }
 
-#elif defined(STM32F407xx)
+#elif defined(STM32F407xx) || defined(STM32F105xC) || defined(STM32F103xB)
 static void can_f4_rx_callback(CAN_HandleTypeDef *hcan, uint32_t RxFifo)
 {
     CAN_Bus_Manager *bus = can_bus_find((void *)hcan, true);

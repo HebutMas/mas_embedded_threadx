@@ -1,6 +1,7 @@
 #include "bsp_i2c.h"
 #include "bsp_def.h"
 #include "i2c.h"
+#ifdef HAL_I2C_MODULE_ENABLED
 #include "tx_api.h"
 #include <string.h>
 
@@ -387,3 +388,5 @@ void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c)
     I2C_Bus *bus = find_bus(hi2c);
     if (bus) tx_event_flags_set(&bus->event_flags, BSP_I2C_EVENT_RX, TX_OR);
 }
+
+#endif /* HAL_I2C_MODULE_ENABLED */

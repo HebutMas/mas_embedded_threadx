@@ -474,4 +474,91 @@ uint8_t BSP_FLASH_Read_Buffer(uint8_t *buffer, uint32_t length)
     return 0;
 }
 
+
+#elif defined(STM32F105xC)
+
+#include "stm32f1xx_hal.h"
+
+/*
+ * F105RCT6 片内 Flash 布局：共 256KB，每页 1KB，共 256 页（页 0 ~ 页 255）
+ * 页 0    (0x08000000): 程序代码起始
+ * 页 255  (0x0803FC00): 最后一页，预留作用户参数存储
+ */
+#define USER_FLASH_PAGE_ADDR  0x0803FC00U
+#define USER_FLASH_PAGE_SIZE  (1U * 1024U)
+
+#elif defined(STM32F103xB)
+
+#include "stm32f1xx_hal.h"
+
+/*
+ * F103C8T6 片内 Flash 布局：共 64KB，每页 1KB，共 64 页（页 0 ~ 页 63）
+ * 页 0   (0x08000000): 程序代码起始
+ * 页 63  (0x0800FC00): 最后一页，预留作用户参数存储
+ */
+#define USER_FLASH_PAGE_ADDR  0x0800FC00U
+#define USER_FLASH_PAGE_SIZE  (1U * 1024U)
+
+static uint8_t BSP_FLASH_Erase_Sector(void)
+{
+    uint32_t PageError = 0;
+    FLASH_EraseInitTypeDef EraseInitStruct;
+
+    EraseInitStruct.TypeErase    = FLASH_TYPEERASE_PAGES;
+    EraseInitStruct.PageAddress  = USER_FLASH_PAGE_ADDR;
+    EraseInitStruct.NbPages      = 1;
+
+    if (HAL_FLASHEx_Erase(&EraseInitStruct, &PageError) != HAL_OK)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+uint8_t BSP_FLASH_Write_Buffer(uint8_t *buffer, uint32_t length)
+{
+    if (buffer == NULL || length == 0 || length > USER_FLASH_PAGE_SIZE)
+    {
+        return 1;
+    }
+
+    HAL_FLASH_Unlock();
+
+    if (BSP_FLASH_Erase_Sector() != 0)
+    {
+        HAL_FLASH_Lock();
+        return 1;
+    }
+
+    uint32_t addr = USER_FLASH_PAGE_ADDR;
+    uint32_t end  = addr + length;
+    uint8_t *src  = buffer;
+    uint8_t  ret  = 0;
+
+    while (addr < end)
+    {
+        if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr, *(uint16_t *)src) != HAL_OK)
+        {
+            ret = 1;
+            break;
+        }
+        addr += 2;
+        src  += 2;
+    }
+
+    HAL_FLASH_Lock();
+    return ret;
+}
+
+uint8_t BSP_FLASH_Read_Buffer(uint8_t *buffer, uint32_t length)
+{
+    if (buffer == NULL || length == 0 || length > USER_FLASH_PAGE_SIZE)
+    {
+        return 1;
+    }
+
+    memcpy(buffer, (uint8_t *)USER_FLASH_PAGE_ADDR, length);
+    return 0;
+}
+
 #endif

@@ -13,7 +13,10 @@
 #ifndef _PID_H_
 #define _PID_H_
 
+/* 仅 F407/H723 有硬件 FPU 和 CMSIS-DSP 库，F103 无此依赖 */
+#if defined(STM32F407xx) || defined(STM32H723xx)
 #include "arm_math.h"
+#endif
 #include "stdint.h"
 #include "stdlib.h"
 
