@@ -2,7 +2,6 @@
 #define _MOTOR_LK_H_
 
 #include "motor_base.h"
-#include "bsp_can.h"      
 
 /* 翎控电机测量数据 */
 typedef struct {
@@ -25,11 +24,5 @@ typedef struct {
 
 /* 声明 API */
 LK_Motor_t *Motor_LK_Init(Motor_Init_Config_s *config, uint32_t LK_Mode_type);
-void Motor_LK_Start(LK_Motor_t *motor);
-void Motor_LK_Stop(LK_Motor_t *motor);
-void Motor_LK_ChangeFeed(LK_Motor_t *motor, Closeloop_Type_e loop, uint8_t feedback_source);
-void Motor_LK_OuterLoop(LK_Motor_t *motor, Closeloop_Type_e type);
-void Motor_LK_SetRef(LK_Motor_t *motor, float ref); 
-void Motor_LK_SetForwardTorque(LK_Motor_t *motor, float torque);
 
 #endif
