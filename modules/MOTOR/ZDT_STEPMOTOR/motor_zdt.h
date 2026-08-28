@@ -11,6 +11,13 @@
 #include "bsp_uart.h"
 #include <stdint.h>
 
+/* 控制模式 */
+typedef enum
+{
+    UART_MODE_SPEED    = 0, /* 速度模式: ref = RPM */
+    UART_MODE_POSITION = 1, /* 位置模式: ref = 脉冲数 */
+} UART_Mode_e;
+
 typedef struct
 {
     Motor_Base   base;
@@ -21,17 +28,11 @@ typedef struct
     uint8_t      enable_state;  /* 使能状态缓存 */
     uint16_t     pulse_per_rev; /* 每圈脉冲数 (默认 3200 = 16细分) */
     uint8_t      accel;         /* 加速度档位 (0-255, 0=无曲线) */
+    UART_Mode_e  mode;          /* 控制模式 (速度/位置) */
 
     float position_rad; /* 实时位置 (rad) */
     float velocity_rpm; /* 实时转速 (RPM) */
 } UART_Motor_t;
-
-/* 控制模式 */
-typedef enum
-{
-    UART_MODE_SPEED    = 0, /* 速度模式: ref = RPM */
-    UART_MODE_POSITION = 1, /* 位置模式: ref = 脉冲数 */
-} UART_Mode_e;
 
 /**
  * @brief ZDT 步进电机初始化
@@ -52,12 +53,6 @@ void Motor_ZDT_Start(UART_Motor_t *motor);
  * @brief ZDT 电机停止 (发送停止命令并清零使能标志)
  */
 void Motor_ZDT_Stop(UART_Motor_t *motor);
-
-/**
- * @brief 设置参考值
- * @param ref  速度模式: RPM;  位置模式: 脉冲数 (相对)
- */
-void Motor_ZDT_SetRef(UART_Motor_t *motor, float ref);
 
 /**
  * @brief 切换控制模式

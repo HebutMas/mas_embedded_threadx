@@ -15,8 +15,7 @@ static inline uint32_t angle_to_pulse(Servo_Motor_t *s, float angle_deg)
     return (uint32_t)(s->min_pulse + ratio * (s->max_pulse - s->min_pulse));
 }
 
-/* ref 角度 → 脉宽 → PWM */
-static void servo_ControlAndSend(Motor_Base *base)
+static void servo_apply(Motor_Base *base)
 {
     Servo_Motor_t *s = MOTOR_GET_DERIVED(base, Servo_Motor_t);
 
@@ -38,14 +37,15 @@ Servo_Motor_t *Motor_Servo_Init(Motor_Init_Config_s *config, uint16_t min_pulse,
     }
     memset(motor, 0, sizeof(Servo_Motor_t));
 
-    motor->base.type      = SERVO_GENERIC;
-    motor->base.transport = MOTOR_TRANSPORT_PWM;
-    motor->base.info      = config->motor_init_info;
-    motor->base.setting   = config->setting_init_config;
-    motor->min_pulse      = min_pulse;
-    motor->max_pulse      = max_pulse;
-    motor->min_angle_deg  = min_angle;
-    motor->max_angle_deg  = max_angle;
+    motor->base.type           = SERVO_GENERIC;
+    motor->base.transport      = MOTOR_TRANSPORT_PWM;
+    motor->base.info           = config->motor_init_info;
+    motor->base.setting        = config->setting_init_config;
+    motor->base.setting.loop_type = OPEN_LOOP; /* 舵机为开环控制 (角度直通) */
+    motor->min_pulse           = min_pulse;
+    motor->max_pulse           = max_pulse;
+    motor->min_angle_deg       = min_angle;
+    motor->max_angle_deg       = max_angle;
 
     PWM_Device *pwm_dev = BSP_PWM_Device_Init(&config->transport_config.pwm);
     if (!pwm_dev)
@@ -61,15 +61,10 @@ Servo_Motor_t *Motor_Servo_Init(Motor_Init_Config_s *config, uint16_t min_pulse,
 
     BSP_PWM_Start(pwm_dev, NULL, 0);
 
-    motor->base.ControlAndSend = servo_ControlAndSend;
+    /* 绑定两阶段调度, 注册到全局链表 */
+    motor->base.Apply   = servo_apply;
     Motor_Register(&motor->base);
 
     LOG_I("Servo init (pulse:%d-%d angle:%.0f-%.0f deg)", min_pulse, max_pulse, min_angle, max_angle);
     return motor;
 }
-
-void Motor_Servo_Start(Servo_Motor_t *motor) { motor->base.setting.enableflag = 1; }
-
-void Motor_Servo_Stop(Servo_Motor_t *motor) { motor->base.setting.enableflag = 0; }
-
-void Motor_Servo_SetRef(Servo_Motor_t *motor, float ref_deg) { motor->base.controller.ref = ref_deg; }

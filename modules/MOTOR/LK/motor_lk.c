@@ -144,57 +144,6 @@ static void lk_can_rx_callback(Can_Device *dev, const uint8_t *data, uint8_t len
         Module_Offline_device_update(motor->base.offline_dev);
     }
 }
-/* PID 控制计算 */
-static float CalculatePIDOutput(LK_Motor_t *motor)
-{
-    float pid_measure, pid_ref;
-
-    pid_ref = motor->base.controller.ref;
-    if (motor->base.setting.motor_reverse_flag == 1) pid_ref *= -1;
-
-    /* 位置环 */
-    if (motor->base.setting.loop_type & ANGLE_LOOP)
-    {
-        pid_measure = (motor->base.setting.angle_feedback_source == 1 && motor->base.controller.other_angle_feedback_ptr)
-                          ? *motor->base.controller.other_angle_feedback_ptr
-                          : motor->base.measure.total_angle;
-        if (motor->base.setting.feedback_reverse_flag == 1) pid_measure *= -1;
-        pid_ref = PIDCalculate(&motor->base.controller.angle_PID, pid_measure, pid_ref);
-    }
-
-    /* 速度环 */
-    if (motor->base.setting.loop_type & SPEED_LOOP)
-    {
-        pid_measure = (motor->base.setting.speed_feedback_source == 1 && motor->base.controller.other_speed_feedback_ptr)
-                          ? *motor->base.controller.other_speed_feedback_ptr
-                          : motor->base.measure.speed_rad;
-        if (motor->base.setting.feedback_reverse_flag == 1) pid_measure *= -1;
-        pid_ref = PIDCalculate(&motor->base.controller.speed_PID, pid_measure, pid_ref);
-    }
-
-    return pid_ref;
-}
-
-/* LQR 控制计算 */
-static float CalculateLQROutput(LK_Motor_t *motor)
-{
-    float ref, rad_angle, rad_speed;
-
-    ref = motor->base.controller.ref;
-    if (motor->base.setting.motor_reverse_flag == 1) ref *= -1;
-
-    rad_angle = (motor->base.setting.angle_feedback_source == 1 && motor->base.controller.other_angle_feedback_ptr)
-                    ? *motor->base.controller.other_angle_feedback_ptr
-                    : motor->base.measure.total_angle;
-    if (motor->base.setting.feedback_reverse_flag == 1) rad_angle *= -1;
-
-    rad_speed = (motor->base.setting.speed_feedback_source == 1 && motor->base.controller.other_speed_feedback_ptr)
-                    ? *motor->base.controller.other_speed_feedback_ptr
-                    : motor->base.measure.speed_rad;
-    if (motor->base.setting.feedback_reverse_flag == 1) rad_speed *= -1;
-
-    return LQRCalculate(&motor->base.controller.lqr, rad_angle, rad_speed, ref);
-}
 /* 转矩闭环控制 — 仅 MF/MH/MG */
 static void Motor_LK_TorqueCtrl(LK_Motor_t *motor, int16_t iq)
 {
@@ -223,83 +172,57 @@ static void Motor_LK_TorqueCtrl(LK_Motor_t *motor, int16_t iq)
     BSP_DWT_Delay(0.0002f); /* 200us间隔防止can总线出错 */
 }
 /**
- * @brief 翎控电机控制函数 (每周期调用)
- * @note  数据流: ref(电机端) → PID(电机端测量) → torque(电机端 Nm)
- *         → ÷(Kt × gear_ratio × 电流分辨率) → iq → CAN 发送
+ * @brief 翎控电机阶段2: 输出应用 (每周期调用)
+ * @note  数据流: output_torque(电机端 Nm) → ÷(Kt × gear_ratio × 电流分辨率) → iq → CAN 发送
  *         与 DJI 一致: PID 输出视为输出端扭矩, 发送时除减速比
  */
-static void lk_ControlAndSend(Motor_Base *base)
+static void lk_apply(Motor_Base *base)
 {
     LK_Motor_t *motor = MOTOR_GET_DERIVED(base, LK_Motor_t);
+    uint8_t     offline = (base->offline_dev != NULL &&
+                           Module_Offline_get_device_status(base->offline_dev) == STATE_OFFLINE);
 
-    /* 离线或禁用: 清 PID 状态, 发零扭矩 */
-    if (Module_Offline_get_device_status(base->offline_dev) == STATE_OFFLINE || base->setting.enableflag == 0)
+    /* 离线或禁用: 发零扭矩 */
+    if (offline || base->setting.enableflag == 0)
     {
-        base->controller.output           = 0;
-        base->controller.output_torque    = 0;
-        base->controller.speed_PID.Output = 0;
-        base->controller.speed_PID.Iout   = 0;
-        base->controller.angle_PID.Output = 0;
-        base->controller.angle_PID.Iout   = 0;
-    switch (motor->mode_type)
-    {
+        switch (motor->mode_type)
+        {
         case LK_CMD_TORQUE_CLOSED_LOOP:
             Motor_LK_TorqueCtrl(motor, 0);
             break;
         default:
             break;
+        }
+        return;
     }
-    return;
-}
 
-float torque = 0;
-
-/* 1. PID / LQR 计算电机端扭矩 */
-switch (base->setting.algorithm_type)
-{
-    case CONTROL_PID:
-        torque = CalculatePIDOutput(motor);
-        break;
-    case CONTROL_LQR:
-        torque = CalculateLQROutput(motor);
-        break;
-    default:
-        break;
-}
-
-/* 2. 叠加前馈 + 限幅 */
-torque = torque + base->controller.feedforward_torque;
-VAL_LIMIT(torque, -base->info.max_torque, base->info.max_torque);
-base->controller.output_torque = torque;
-base->controller.output        = torque;
-
-/* 3. 扭矩(Nm) → iqControl → 按模式发送
- *    输出扭矩 ÷ gear_ratio ÷ Kt = 电机电流(A)
- *    MG: ±2048 ↔ ±33A,  MF: ±2048 ↔ ±16.5A */
-int16_t iq = 0;
-switch (base->info.motor_type)
-{
+    /* 扭矩(Nm) → iqControl → 按模式发送
+     * 输出扭矩 ÷ gear_ratio ÷ Kt = 电机电流(A)
+     * MG: ±2048 ↔ ±33A,  MF: ±2048 ↔ ±16.5A */
+    int16_t iq = 0;
+    switch (base->info.motor_type)
+    {
     case MG8016:
     {
-        float motor_current = torque / (base->info.torque_constant * base->info.gear_ratio);
+        float motor_current = base->controller.output_torque / (base->info.torque_constant * base->info.gear_ratio);
         iq = (int16_t)(motor_current / LK_MG_TORQUE_CURRENT_RES);
         break;
     }
     /* 后续在此添加 MF / MH / MS 映射 */
     default:
         break;
-}
-VAL_LIMIT(iq, LK_TORQUE_IQ_MIN, LK_TORQUE_IQ_MAX);
+    }
+    VAL_LIMIT(iq, LK_TORQUE_IQ_MIN, LK_TORQUE_IQ_MAX);
 
-switch (motor->mode_type)
-{
+    switch (motor->mode_type)
+    {
     case LK_CMD_TORQUE_CLOSED_LOOP:
         Motor_LK_TorqueCtrl(motor, iq);
         break;
     /* 后续在此添加其他模式: 速度/位置闭环 */
     default:
         break;
-}
+    }
 }
 /* 翎控电机初始化 */
 LK_Motor_t *Motor_LK_Init(Motor_Init_Config_s *config, uint32_t LK_Mode_type)
@@ -354,27 +277,10 @@ LK_Motor_t *Motor_LK_Init(Motor_Init_Config_s *config, uint32_t LK_Mode_type)
     Motor_LK_ClearError(motor);
     Motor_LK_MotorRun(motor);
     /* 注册到全局链表 */
-    motor->base.ControlAndSend = lk_ControlAndSend;
+    motor->base.Apply   = lk_apply;
     Motor_Register(&motor->base);
 
     LOG_I("LK motor initialized (type=%d, mode=0x%03X)", motor->base.info.motor_type, LK_Mode_type);
 
     return motor;
 }
-void Motor_LK_Start(LK_Motor_t *motor) { motor->base.setting.enableflag = 1; }
-
-void Motor_LK_Stop(LK_Motor_t *motor) { motor->base.setting.enableflag = 0; }
-
-void Motor_LK_ChangeFeed(LK_Motor_t *motor, Closeloop_Type_e loop, uint8_t feedback_source)
-{
-    if (loop == ANGLE_LOOP)
-        motor->base.setting.angle_feedback_source = feedback_source;
-    else if (loop == SPEED_LOOP)
-        motor->base.setting.speed_feedback_source = feedback_source;
-}
-
-void Motor_LK_OuterLoop(LK_Motor_t *motor, Closeloop_Type_e type) { motor->base.setting.loop_type = type; }
-/* 设置的参数为电机端数值（即不带减速箱时的数值）*/
-void Motor_LK_SetRef(LK_Motor_t *motor, float ref) { motor->base.controller.ref = ref; }
-
-void Motor_LK_SetForwardTorque(LK_Motor_t *motor, float torque) { motor->base.controller.feedforward_torque = torque; }

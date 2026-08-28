@@ -53,7 +53,21 @@ static BSP_CanMsg_t sender_assignment[MOTOR_SENDER_SIZE] = {
 };
 /* clang-format on */
 
-static uint8_t sender_enable_flag[MOTOR_SENDER_SIZE] = {0};
+static uint8_t sender_motor_count[MOTOR_SENDER_SIZE] = {0}; /* 组内电机数 (Init 时累加) */
+static uint8_t sender_write_count[MOTOR_SENDER_SIZE] = {0}; /* 本周期已写入数 */
+
+/* 写入完成后计数, 组内最后一个电机负责发送整帧 */
+static void dji_batch_send(DJI_Motor_t *motor)
+{
+    uint8_t g = motor->sender_group;
+
+    sender_write_count[g]++;
+    if (sender_write_count[g] >= sender_motor_count[g])
+    {
+        sender_write_count[g] = 0;
+        BSP_CAN_SendMessage(&sender_assignment[g]);
+    }
+}
 
 /* CAN 接收回调 */
 static void dji_can_rx_callback(Can_Device *dev, const uint8_t *data, uint8_t len)
@@ -84,129 +98,45 @@ static void dji_can_rx_callback(Can_Device *dev, const uint8_t *data, uint8_t le
     Module_Offline_device_update(motor->base.offline_dev);
 }
 
-/* PID 控制计算  */
-static float CalculatePIDOutput(DJI_Motor_t *motor)
+static void dji_apply(Motor_Base *base)
 {
-    float pid_measure, pid_ref;
+    DJI_Motor_t *motor   = MOTOR_GET_DERIVED(base, DJI_Motor_t);
+    uint8_t      offline = (base->offline_dev != NULL && Module_Offline_get_device_status(base->offline_dev) == STATE_OFFLINE);
 
-    pid_ref = motor->base.controller.ref;
-    if (motor->base.setting.motor_reverse_flag == 1) pid_ref *= -1;
-
-    /* 位置环 */
-    if (motor->base.setting.loop_type & ANGLE_LOOP)
+    if (offline || base->setting.enableflag == 0)
     {
-        pid_measure = (motor->base.setting.angle_feedback_source == 1 && motor->base.controller.other_angle_feedback_ptr)
-                          ? *motor->base.controller.other_angle_feedback_ptr
-                          : motor->base.measure.total_angle;
-
-        if (motor->base.setting.feedback_reverse_flag == 1) pid_measure *= -1;
-        pid_ref = PIDCalculate(&motor->base.controller.angle_PID, pid_measure, pid_ref);
-    }
-
-    /* 速度环 */
-    if (motor->base.setting.loop_type & SPEED_LOOP)
-    {
-        pid_measure = (motor->base.setting.speed_feedback_source == 1 && motor->base.controller.other_speed_feedback_ptr)
-                          ? *motor->base.controller.other_speed_feedback_ptr
-                          : motor->base.measure.speed_rad;
-
-        if (motor->base.setting.feedback_reverse_flag == 1) pid_measure *= -1;
-        pid_ref = PIDCalculate(&motor->base.controller.speed_PID, pid_measure, pid_ref);
-    }
-
-    return pid_ref;
-}
-
-/* LQR 控制计算 */
-static float CalculateLQROutput(DJI_Motor_t *motor)
-{
-    float ref, rad_angle, rad_speed;
-
-    ref = motor->base.controller.ref;
-    if (motor->base.setting.motor_reverse_flag == 1) ref *= -1;
-
-    rad_angle = (motor->base.setting.angle_feedback_source == 1 && motor->base.controller.other_angle_feedback_ptr)
-                    ? *motor->base.controller.other_angle_feedback_ptr
-                    : motor->base.measure.total_angle;
-    if (motor->base.setting.feedback_reverse_flag == 1) rad_angle *= -1;
-
-    rad_speed = (motor->base.setting.speed_feedback_source == 1 && motor->base.controller.other_speed_feedback_ptr)
-                    ? *motor->base.controller.other_speed_feedback_ptr
-                    : motor->base.measure.speed_rad;
-    if (motor->base.setting.feedback_reverse_flag == 1) rad_speed *= -1;
-
-    return LQRCalculate(&motor->base.controller.lqr, rad_angle, rad_speed, ref);
-}
-
-/* dji控制函数 */
-static void dji_control(Motor_Base *base)
-{
-    DJI_Motor_t *motor = MOTOR_GET_DERIVED(base, DJI_Motor_t);
-
-    /* 离线或禁用: 清零 CAN 发送缓冲区 */
-    if (Module_Offline_get_device_status(base->offline_dev) == STATE_OFFLINE || base->setting.enableflag == 0)
-    {
-        uint8_t group                              = motor->sender_group;
-        uint8_t num                                = motor->message_num;
-        sender_assignment[group].data[2 * num]     = 0;
-        sender_assignment[group].data[2 * num + 1] = 0;
-        base->controller.output                    = 0;
-        base->controller.output_torque             = 0;
-        base->controller.speed_PID.Output          = 0;
-        base->controller.speed_PID.Iout            = 0;
-        base->controller.angle_PID.Output          = 0;
-        base->controller.angle_PID.Iout            = 0;
+        sender_assignment[motor->sender_group].data[2 * motor->message_num]     = 0;
+        sender_assignment[motor->sender_group].data[2 * motor->message_num + 1] = 0;
+        dji_batch_send(motor);
         return;
     }
 
-    float torque = 0;
-
-    /* PID/LQR 计算 */
-    switch (base->setting.algorithm_type)
-    {
-    case CONTROL_PID:
-        torque = CalculatePIDOutput(motor);
-        break;
-    case CONTROL_LQR:
-        torque = CalculateLQROutput(motor);
-        break;
-    default:
-        break;
-    }
-
-    torque = torque + motor->base.controller.feedforward_torque;
-    VAL_LIMIT(torque, -motor->base.info.max_torque, motor->base.info.max_torque);
-    motor->base.controller.output_torque = torque;
+    float torque = base->controller.output_torque;
 
     /* 扭矩 → 电流 → 整数值 (CAN 报文) */
-    switch (motor->base.info.motor_type)
+    switch (base->info.motor_type)
     {
     case GM6020_CURRENT:
-        motor->base.controller.output =
-            currentToInteger(-3.0f, 3.0f, -16384, 16384, torque / (motor->base.info.torque_constant * motor->base.info.gear_ratio));
+        base->controller.output = currentToInteger(-3.0f, 3.0f, -16384, 16384, torque / (base->info.torque_constant * base->info.gear_ratio));
         break;
     case M3508:
-        motor->base.controller.output =
-            currentToInteger(-20.0f, 20.0f, -16384, 16384, torque / (motor->base.info.torque_constant * motor->base.info.gear_ratio));
+        base->controller.output = currentToInteger(-20.0f, 20.0f, -16384, 16384, torque / (base->info.torque_constant * base->info.gear_ratio));
         break;
     case M2006:
-        motor->base.controller.output =
-            currentToInteger(-10.0f, 10.0f, -10000, 10000, torque / (motor->base.info.torque_constant * motor->base.info.gear_ratio));
+        base->controller.output = currentToInteger(-10.0f, 10.0f, -10000, 10000, torque / (base->info.torque_constant * base->info.gear_ratio));
         break;
     default:
-        motor->base.controller.output = 0;
+        base->controller.output = 0;
         break;
     }
 
-    /* 填充 CAN 发送缓冲区 (不实际发送) */
-    uint8_t group                              = motor->sender_group;
-    uint8_t num                                = motor->message_num;
-    int16_t out                                = (int16_t)base->controller.output;
-    sender_assignment[group].data[2 * num]     = (uint8_t)(out >> 8);
-    sender_assignment[group].data[2 * num + 1] = (uint8_t)(out & 0x00ff);
+    int16_t out                                                             = (int16_t)base->controller.output;
+    sender_assignment[motor->sender_group].data[2 * motor->message_num]     = (uint8_t)(out >> 8);
+    sender_assignment[motor->sender_group].data[2 * motor->message_num + 1] = (uint8_t)(out & 0x00ff);
+    dji_batch_send(motor);
 }
 
-/* CAN 发送分组计算 */
+/* CAN 发送分组计算 (同时设置 config->rx_id) */
 static UINT MotorSenderGrouping(DJI_Motor_t *motor, Can_Device_Init_Config_s *config)
 {
     uint8_t motor_id = config->tx_id - 1;
@@ -326,9 +256,8 @@ static UINT MotorSenderGrouping(DJI_Motor_t *motor, Can_Device_Init_Config_s *co
 
     if (status != TX_SUCCESS) return status;
 
-    sender_enable_flag[motor_grouping] = 1;
-    motor->message_num                 = motor_send_num;
-    motor->sender_group                = motor_grouping;
+    motor->sender_group = motor_grouping;
+    motor->message_num  = motor_send_num;
 
     return TX_SUCCESS;
 }
@@ -351,7 +280,7 @@ DJI_Motor_t *Motor_DJI_Init(Motor_Init_Config_s *config)
     motor->base.info      = config->motor_init_info;
     motor->base.setting   = config->setting_init_config;
 
-    /* 电机分组 */
+    /* 电机分组 (同时计算 rx_id) */
     if (MotorSenderGrouping(motor, &config->transport_config.can) != TX_SUCCESS)
     {
         LOG_E("Motor Sender Grouping Failed!");
@@ -373,6 +302,9 @@ DJI_Motor_t *Motor_DJI_Init(Motor_Init_Config_s *config)
     can_dev->rx_callback = dji_can_rx_callback;
     can_dev->user_arg    = motor;
 
+    /* 组内电机计数 (用于最后一个写入者发送整帧) */
+    sender_motor_count[motor->sender_group]++;
+
     /* 初始化控制器 */
     if (motor->base.setting.algorithm_type == CONTROL_PID)
     {
@@ -389,8 +321,8 @@ DJI_Motor_t *Motor_DJI_Init(Motor_Init_Config_s *config)
     /* 离线检测 */
     motor->base.offline_dev = Module_Offline_register(&config->offline_init_config);
 
-    /* 注册到全局链表 */
-    motor->base.ControlAndSend = dji_control;
+    /* 绑定两阶段调度, 注册到全局链表 */
+    motor->base.Apply = dji_apply;
     Motor_Register(&motor->base);
 
     LOG_I("DJI motor initialized (type=%d, tx_id=%d, rx_id=%d)", motor->base.info.motor_type, config->transport_config.can.tx_id,
@@ -398,31 +330,3 @@ DJI_Motor_t *Motor_DJI_Init(Motor_Init_Config_s *config)
 
     return motor;
 }
-
-void Motor_DJI_Stop(DJI_Motor_t *motor) { motor->base.setting.enableflag = 0; }
-void Motor_DJI_Start(DJI_Motor_t *motor) { motor->base.setting.enableflag = 1; }
-
-void Motor_DJI_ChangeFeed(DJI_Motor_t *motor, Closeloop_Type_e loop, uint8_t feedback_source)
-{
-    if (loop == ANGLE_LOOP)
-        motor->base.setting.angle_feedback_source = feedback_source;
-    else if (loop == SPEED_LOOP)
-        motor->base.setting.speed_feedback_source = feedback_source;
-}
-
-void Motor_DJI_OuterLoop(DJI_Motor_t *motor, Closeloop_Type_e outer_loop) { motor->base.setting.loop_type = outer_loop; }
-
-void Motor_DJI_SetRef(DJI_Motor_t *motor, float ref) { motor->base.controller.ref = ref; }
-
-void Motor_DJI_Flush(void)
-{
-    for (size_t i = 0; i < MOTOR_SENDER_SIZE; ++i)
-    {
-        if (sender_enable_flag[i])
-        {
-            BSP_CAN_SendMessage(&sender_assignment[i]);
-        }
-    }
-}
-
-void Motor_DJI_SetForwardTorque(DJI_Motor_t *motor, float torque) { motor->base.controller.feedforward_torque = torque; }

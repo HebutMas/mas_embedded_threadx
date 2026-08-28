@@ -32,53 +32,6 @@ static float        s_buffer_energy = 60.0f;
 static uint8_t      s_use_buffer    = 1;
 static PIDInstance  s_buffer_pid;
 
-/* DJI 电机辅助: output(整型电流值) ↔ torque(Nm) */
-static float dji_output_to_torque(const Motor_Base *m)
-{
-    float Kt_gear = m->info.torque_constant * m->info.gear_ratio;
-    if (Kt_gear < 1e-6f) return 0.0f;
-
-    switch (m->info.motor_type)
-    {
-    case M3508:
-        return IntegerToCurrent(-20.0f, 20.0f, -16384, 16384, (int16_t)m->controller.output);
-    case M2006:
-        return IntegerToCurrent(-10.0f, 10.0f, -10000, 10000, (int16_t)m->controller.output);
-    case GM6020_CURRENT:
-        return IntegerToCurrent(-3.0f,  3.0f,  -16384, 16384, (int16_t)m->controller.output);
-    default:
-        return 0.0f; /* 非 DJI 电机不参与功率控制 */
-    }
-}
-
-/* DJI 电机: 扭矩 (Nm) → 写入 controller.output */
-static void dji_set_torque(Motor_Base *m, float torque_nm)
-{
-    float Kt_gear = m->info.torque_constant * m->info.gear_ratio;
-    if (Kt_gear < 1e-6f)
-    {
-        m->controller.output = torque_nm;
-        return;
-    }
-
-    float current_A = torque_nm / Kt_gear;
-
-    switch (m->info.motor_type)
-    {
-    case M3508:
-        m->controller.output = currentToInteger(-20.0f, 20.0f, -16384, 16384, current_A);
-        break;
-    case M2006:
-        m->controller.output = currentToInteger(-10.0f, 10.0f, -10000, 10000, current_A);
-        break;
-    case GM6020_CURRENT:
-        m->controller.output = currentToInteger(-3.0f,  3.0f,  -16384, 16384, current_A);
-        break;
-    default:
-        break; /* 非 DJI 电机不操作 */
-    }
-}
-
 /**
  * @brief 对一组电机执行混合权重功率分配
  * @param nodes       电机节点数组
@@ -109,7 +62,7 @@ static void limit_group(PC_Node_t **nodes, uint8_t N, float max_power, float *cm
         float       k3 = nodes[i]->param.k3;
 
         omega[i]  = m->measure.speed_rad / m->info.gear_ratio;
-        tau[i]    = dji_output_to_torque(m);
+        tau[i]    = m->controller.output_torque; /* 通用: 命令扭矩 (Nm) */
 
         /* P = τ·Ω + k1·|Ω| + k2·τ² + k3 */
         cmdPow[i] = tau[i] * omega[i] + k1 * ABS(omega[i]) + k2 * tau[i] * tau[i] + k3;
@@ -187,12 +140,12 @@ static void limit_group(PC_Node_t **nodes, uint8_t N, float max_power, float *cm
                 float sqrt_delta = sqrtf(delta);
                 float root1      = (-b_coef + sqrt_delta) / (2.0f * a_coef);
                 float root2      = (-b_coef - sqrt_delta) / (2.0f * a_coef);
-                tau_new = (m->controller.output >= 0.0f) ? root1 : root2;
+                tau_new = (m->controller.output_torque >= 0.0f) ? root1 : root2;
             }
         }
 
         tau_new = CLAMP(tau_new, -m->info.max_torque, m->info.max_torque);
-        dji_set_torque(m, tau_new);
+        m->controller.output_torque = tau_new;
     }
 }
 
