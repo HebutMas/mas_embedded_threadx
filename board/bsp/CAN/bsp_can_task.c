@@ -74,6 +74,10 @@ static void can_tx_task_entry(ULONG arg)
                 CAN_TxHeaderTypeDef TxHeader = {.StdId = msg.id, .DLC = msg.len, .RTR = CAN_RTR_DATA, .IDE = CAN_ID_STD};
                 uint32_t            mailbox;
                 while (HAL_CAN_AddTxMessage(msg.hcan, &TxHeader, msg.data, &mailbox) != HAL_OK) tx_thread_sleep(1);
+#elif defined(STM32F105xC) || defined(STM32F103xB)
+                CAN_TxHeaderTypeDef TxHeader = {.StdId = msg.id, .DLC = msg.len, .RTR = CAN_RTR_DATA, .IDE = CAN_ID_STD};
+                uint32_t            mailbox;
+                while (HAL_CAN_AddTxMessage(msg.hcan, &TxHeader, msg.data, &mailbox) != HAL_OK) tx_thread_sleep(1);
 #endif
             }
         }

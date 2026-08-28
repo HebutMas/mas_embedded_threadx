@@ -18,6 +18,10 @@
 #define MOTOR_SENDER_SIZE 15
 #elif defined(STM32F407xx)
 #define MOTOR_SENDER_SIZE 10
+#elif defined(STM32F105xC)
+#define MOTOR_SENDER_SIZE 10
+#elif defined(STM32F103xB)
+#define MOTOR_SENDER_SIZE 5
 #endif
 
 /*
@@ -32,11 +36,13 @@ static BSP_CanMsg_t sender_assignment[MOTOR_SENDER_SIZE] = {
     [2]  = { .hcan = BSP_CAN_HANDLE1, .id = 0x2ff, .len = 8, .data = {0} },
     [3]  = { .hcan = BSP_CAN_HANDLE1, .id = 0x1fe, .len = 8, .data = {0} },
     [4]  = { .hcan = BSP_CAN_HANDLE1, .id = 0x2fe, .len = 8, .data = {0} },
+#if defined(STM32F407xx) || defined(STM32H723xx) || defined(STM32F105xC)
     [5]  = { .hcan = BSP_CAN_HANDLE2, .id = 0x1ff, .len = 8, .data = {0} },
     [6]  = { .hcan = BSP_CAN_HANDLE2, .id = 0x200, .len = 8, .data = {0} },
     [7]  = { .hcan = BSP_CAN_HANDLE2, .id = 0x2ff, .len = 8, .data = {0} },
     [8]  = { .hcan = BSP_CAN_HANDLE2, .id = 0x1fe, .len = 8, .data = {0} },
     [9]  = { .hcan = BSP_CAN_HANDLE2, .id = 0x2fe, .len = 8, .data = {0} },
+#endif
 #if defined(STM32H723xx)
     [10] = { .hcan = BSP_CAN_HANDLE3, .id = 0x1ff, .len = 8, .data = {0} },
     [11] = { .hcan = BSP_CAN_HANDLE3, .id = 0x200, .len = 8, .data = {0} },

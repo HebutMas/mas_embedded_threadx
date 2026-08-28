@@ -1,6 +1,7 @@
 #include "bsp_spi.h"
 #include "bsp_def.h"
 #include "spi.h"
+#ifdef HAL_SPI_MODULE_ENABLED
 #include "tx_api.h"
 #include <string.h>
 
@@ -392,6 +393,9 @@ void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 #elif defined(STM32F407xx)
         volatile uint32_t sr = hspi->Instance->SR;
         volatile uint32_t dr = hspi->Instance->DR;
+#elif defined(STM32F105xC) || defined(STM32F103xB)
+        volatile uint32_t sr = hspi->Instance->SR;
+        volatile uint32_t dr = hspi->Instance->DR;
 #endif
         (void)sr;
         (void)dr;
@@ -405,3 +409,5 @@ void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
         hspi->ErrorCode = HAL_SPI_ERROR_NONE;
     }
 }
+
+#endif /* HAL_SPI_MODULE_ENABLED */

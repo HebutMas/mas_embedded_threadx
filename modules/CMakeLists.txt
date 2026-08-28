@@ -82,6 +82,10 @@ if(MODULE_SUPERCAP)
 endif()
 
 if(MODULE_MOTOR)
+    # 底盘运动学：只有单板/底盘板才需要
+    if(BOARD STREQUAL "single" OR BOARD STREQUAL "chassis")
+        list(APPEND _module_sources algorithm/chassis_type.c)
+    endif()
     list(APPEND _module_sources
         MOTOR/module_motor.c
         MOTOR/motor_base.c
@@ -93,10 +97,6 @@ if(MODULE_MOTOR)
         MOTOR/ZDT_STEPMOTOR/motor_zdt.c
         MOTOR/LK/motor_lk.c
     )
-    # 底盘运动学：只有单板/底盘板才需要
-    if(BOARD STREQUAL "single" OR BOARD STREQUAL "chassis")
-        list(APPEND _module_sources algorithm/chassis_type.c)
-    endif()
     list(APPEND _module_includes
         ${CMAKE_CURRENT_SOURCE_DIR}/MOTOR
         ${CMAKE_CURRENT_SOURCE_DIR}/MOTOR/DJI
@@ -121,7 +121,6 @@ if(MODULE_BOARDCOMM)
     )
     list(APPEND _module_includes ${CMAKE_CURRENT_SOURCE_DIR}/BOARDCOMM)
 endif()
-
 
 # 创建库
 add_library(modules OBJECT ${_module_sources})

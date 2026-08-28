@@ -138,4 +138,17 @@ void BSP_LED_Show(uint32_t aRGB)
     BSP_PWM_SetDutyCycle(pwm_g, green_duty);
     BSP_PWM_SetDutyCycle(pwm_b, blue_duty);
 }
+#elif defined(STM32F105xC) || defined(STM32F103xB)
+
+#include "gpio.h"
+
+void BSP_LED_Init(void)
+{
+    LOG_I("BSP LED init (GPIO stub)");
+}
+
+void BSP_LED_Show(uint32_t aRGB)
+{
+    (void)aRGB;
+}
 #endif

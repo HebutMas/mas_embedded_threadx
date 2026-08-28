@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "bsp_dwt.h"
+#include <math.h>
 
 /* ----------------------------下面是pid优化环节的实现---------------------------- */
 

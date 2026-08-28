@@ -15,6 +15,8 @@
 #define I2C_BUS_NUM 4
 #elif defined(STM32F407xx)
 #define I2C_BUS_NUM 3
+#elif defined(STM32F105xC) || defined(STM32F103xB)
+#define I2C_BUS_NUM 2
 #endif
 
 /* 对外不透明句柄 */

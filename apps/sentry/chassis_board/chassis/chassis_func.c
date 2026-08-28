@@ -261,8 +261,8 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
             float        total_angle_rad = chassis_cmd->offset_angle * DEGREE_2_RAD;
             cos_theta                    = arm_cos_f32(total_angle_rad);
             sin_theta                    = arm_sin_f32(total_angle_rad);
-            chassis_vx                   = chassis_cmd->vx * cos_theta - chassis_cmd->vy * sin_theta;
-            chassis_vy                   = chassis_cmd->vx * sin_theta + chassis_cmd->vy * cos_theta;
+            chassis_vx                   = chassis_cmd->vx * cos_theta + chassis_cmd->vy * sin_theta;
+            chassis_vy                   = -chassis_cmd->vx * sin_theta + chassis_cmd->vy * cos_theta;
 
             Chassis_Swerve_Calc(chassis_motors, &chassis_swerve_config, chassis_vx, chassis_vy, chassis_wz);
         }
