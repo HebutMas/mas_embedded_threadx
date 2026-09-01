@@ -26,7 +26,7 @@ static const Chassis_Swerve_Config_s chassis_swerve_config = {
 void chassis_init(void)
 {
     PID_Init_Config_s config = {
-        .MaxOut = 5, .IntegralLimit = 0.01, .DeadBand = 10, .Kp = 0.1, .Ki = 0, .Kd = 0.001, .Improve = 0x01}; // enable integratiaon limit
+        .MaxOut = 5, .IntegralLimit = 0.01, .DeadBand = 12, .Kp = 0.065, .Ki = 0, .Kd = 0, .Improve = 0x01}; // enable integratiaon limit
     PIDInit(&chassis_follow_pid, &config);
 
     Motor_Init_Config_s chassis_motor_config = {
@@ -239,16 +239,17 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
                 break;
             case chassis_automode:
             {
-                const game_status_t *game_status = (game_status_t *)Module_Referee_Get_cmd_data(CMD_ID_GAME_STATUS);
-                if (game_status != NULL && game_status->type_progress.game_progress == 4) // 比赛中
-                {
-                }
-                else
-                {
-                    chassis_vx = 0;
-                    chassis_vy = 0;
-                    chassis_wz = 0;
-                }
+                chassis_wz = 3;
+                // const game_status_t *game_status = (game_status_t *)Module_Referee_Get_cmd_data(CMD_ID_GAME_STATUS);
+                // if (game_status != NULL && game_status->type_progress.game_progress == 4) // 比赛中
+                // {
+                // }
+                // else
+                // {
+                //     chassis_vx = 0;
+                //     chassis_vy = 0;
+                //     chassis_wz = 0;
+                // }
                 break;
             }
             default:
@@ -258,7 +259,6 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
             // 线速度已经在云台板转换为底盘系
             chassis_vx = chassis_cmd->vx;
             chassis_vy = chassis_cmd->vy;
-
             Chassis_Swerve_Calc(chassis_motors, &chassis_swerve_config, chassis_vx, chassis_vy, chassis_wz);
         }
         else
