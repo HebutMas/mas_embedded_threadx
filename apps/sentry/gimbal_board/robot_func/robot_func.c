@@ -33,10 +33,13 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
     /* RC 在线 */
     if (state & 0x01)
     {
-        /* 摇杆 → 速度比例 (-1.0 ~ +1.0)
-         * SBUS 通道值: 中位 1024, 上 240, 下 1807 → 零偏后 -784 ~ +783 */
-        Chassis_Ctrl->vx = (float)Module_Remote_get_channel(2) / (float)(SBUS_CHX_DOWN - SBUS_CHX_BIAS);
-        Chassis_Ctrl->vy = (float)Module_Remote_get_channel(1) / (float)(SBUS_CHX_DOWN - SBUS_CHX_BIAS);
+        /* 摇杆 → 云台系速度 (m/s), 与导航速度同单位
+         * SBUS 通道值: 中位 1024, 上 240, 下 1807 → 零偏后 -784 ~ +783
+         * 归一化到 -1.0 ~ +1.0 后乘满杆速度 */
+        Chassis_Ctrl->vx =
+            (float)Module_Remote_get_channel(2) / (float)(SBUS_CHX_DOWN - SBUS_CHX_BIAS) * CHASSIS_MAX_SPEED_MPS;
+        Chassis_Ctrl->vy =
+            (float)Module_Remote_get_channel(1) / (float)(SBUS_CHX_DOWN - SBUS_CHX_BIAS) * CHASSIS_MAX_SPEED_MPS;
 
         int16_t ch8 = Module_Remote_get_channel(8);
         if (ch8 == SBUS_CHX_UP)

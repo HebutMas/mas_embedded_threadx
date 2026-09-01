@@ -14,7 +14,7 @@
 #include "ulog_def.h"
 
 static DJI_Motor_t                  *chassis_motors[8];
-static float                         chassis_vx, chassis_vy, chassis_wz; // 将云台系的速度投影到底盘
+static float                         chassis_vx, chassis_vy, chassis_wz; // 底盘系速度
 static PIDInstance                   chassis_follow_pid;
 static const Chassis_Swerve_Config_s chassis_swerve_config = {
     .align_rad      = {4458 * 0.000767f, 1010 * 0.000767f, 7177 * 0.000767f, 3756 * 0.000767f}, // lf lb rb rf(rad)
@@ -26,7 +26,7 @@ static const Chassis_Swerve_Config_s chassis_swerve_config = {
 void chassis_init(void)
 {
     PID_Init_Config_s config = {
-        .MaxOut = 5, .IntegralLimit = 0.01, .DeadBand = 10, .Kp = 0.1, .Ki = 0, .Kd = 0.001, .Improve = 0x01}; // enable integratiaon limit
+        .MaxOut = 5, .IntegralLimit = 0.01, .DeadBand = 12, .Kp = 0.065, .Ki = 0, .Kd = 0, .Improve = 0x01}; // enable integratiaon limit
     PIDInit(&chassis_follow_pid, &config);
 
     Motor_Init_Config_s chassis_motor_config = {
@@ -239,31 +239,26 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
                 break;
             case chassis_automode:
             {
-                const game_status_t *game_status = (game_status_t *)Module_Referee_Get_cmd_data(CMD_ID_GAME_STATUS);
-                if (game_status != NULL && game_status->type_progress.game_progress == 4) // 比赛中
-                {
-                }
-                else
-                {
-                    chassis_vx = 0;
-                    chassis_vy = 0;
-                    chassis_wz = 0;
-                }
+                chassis_wz = 3;
+                // const game_status_t *game_status = (game_status_t *)Module_Referee_Get_cmd_data(CMD_ID_GAME_STATUS);
+                // if (game_status != NULL && game_status->type_progress.game_progress == 4) // 比赛中
+                // {
+                // }
+                // else
+                // {
+                //     chassis_vx = 0;
+                //     chassis_vy = 0;
+                //     chassis_wz = 0;
+                // }
                 break;
             }
             default:
                 break;
             }
 
-            // 根据云台和底盘的角度offset将控制量映射到底盘坐标系上
-            // 底盘逆时针旋转为角度正方向;云台命令的方向以云台指向的方向为x,采用右手系
-            static float sin_theta, cos_theta;
-            float        total_angle_rad = chassis_cmd->offset_angle * DEGREE_2_RAD;
-            cos_theta                    = arm_cos_f32(total_angle_rad);
-            sin_theta                    = arm_sin_f32(total_angle_rad);
-            chassis_vx                   = chassis_cmd->vx * cos_theta + chassis_cmd->vy * sin_theta;
-            chassis_vy                   = -chassis_cmd->vx * sin_theta + chassis_cmd->vy * cos_theta;
-
+            // 线速度已经在云台板转换为底盘系
+            chassis_vx = chassis_cmd->vx;
+            chassis_vy = chassis_cmd->vy;
             Chassis_Swerve_Calc(chassis_motors, &chassis_swerve_config, chassis_vx, chassis_vy, chassis_wz);
         }
         else
