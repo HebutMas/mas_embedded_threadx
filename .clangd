@@ -1,6 +1,5 @@
 CompileFlags:
   Add:
-    - --target=arm-none-eabi
     - -mthumb
     - -mfloat-abi=hard
     - -std=gnu11

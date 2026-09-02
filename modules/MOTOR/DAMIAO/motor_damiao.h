@@ -89,35 +89,4 @@ void Motor_DM_Cmd(DM_Motor_t *motor, DMMotor_Mode_e cmd);
  */
 DM_Motor_t *Motor_DM_Init(Motor_Init_Config_s *config, uint32_t DM_Mode_type);
 
-/**
- * @brief 达妙电机使能
- */
-void Motor_DM_Start(DM_Motor_t *motor);
-
-/**
- * @brief 达妙电机停止
- */
-void Motor_DM_Stop(DM_Motor_t *motor);
-
-/**
- * @brief 修改闭环反馈数据源
- */
-void Motor_DM_ChangeFeed(DM_Motor_t *motor, Closeloop_Type_e loop, uint8_t feedback_source);
-
-/**
- * @brief 设置外环控制类型
- */
-void Motor_DM_OuterLoop(DM_Motor_t *motor, Closeloop_Type_e closeloop_type);
-
-/**
- * @brief 设置参考值 (rad 或 rad/s 或 Nm)
- */
-void Motor_DM_SetRef(DM_Motor_t *motor, float ref);
-
-/**
- * @brief 设置前馈扭矩
- * @param torque 前馈扭矩值
- */
-void Motor_DM_SetForwardTorque(DM_Motor_t *motor, float torque);
-
 #endif /* _MOTOR_DAMIAO_H_ */

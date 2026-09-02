@@ -66,46 +66,49 @@ typedef struct
 } DM_Motor_Measure_s;
 
 typedef struct {
-    Motor_Base         base;       // 公共基类 (首字段)
-    DM_Motor_Measure_s measure;    // 达妙测量数据
-    uint32_t           mode_type;  // 控制模式 (DM_MIT_MODE / DM_POS_MODE / ...)
+    Motor_Base               base;    // 公共基类 (首字段)
+    DM_Motor_Measure_s       measure; // 达妙测量数据
+    uint32_t                 mode_type; // 控制模式 (DM_MIT_MODE / DM_POS_MODE / ...)
+    const DM_Motor_Params_t *params;  // 电机参数配置指针 (参数映射表)
 } DM_Motor_t;
 ```
 
 ### 参数映射范围
 
-CAN 帧中整数值与物理量的映射：
+CAN 帧中整数值与物理量的映射（`dm_motor_params[]` 按电机型号查表）：
 
-| 参数 | 物理范围 | 位宽 | 宏 |
+| 参数 | 物理范围 | 位宽 | 说明 |
 |------|---------|------|-----|
-| 位置 | -12.5 ~ +12.5 rad | 16 bit | `DM_P_MIN` / `DM_P_MAX` |
-| 速度 | -30.0 ~ +30.0 rad/s | 12 bit | `DM_V_MIN` / `DM_V_MAX` |
-| Kp | 0 ~ 500 | 12 bit | `DM_KP_MIN` / `DM_KP_MAX` |
-| Kd | 0 ~ 5 | 12 bit | `DM_KD_MIN` / `DM_KD_MAX` |
-| 扭矩 | -10.0 ~ +10.0 Nm | 12 bit | `DM_T_MIN` / `DM_T_MAX` |
+| 位置 | -12.5 ~ +12.5 rad | 16 bit | `p_min` / `p_max` |
+| 速度 | -30.0 ~ +30.0 rad/s | 12 bit | `v_min` / `v_max` |
+| Kp | 0 ~ 500 | 12 bit | `kp_min` / `kp_max` |
+| Kd | 0 ~ 5 | 12 bit | `kd_min` / `kd_max` |
+| 扭矩 | -10.0 ~ +10.0 Nm | 12 bit | `t_min` / `t_max` |
 
 ## 控制流程
 
 ```
-Motor_DM_Init()
+Motor_DM_Init(config, DM_Mode_type)
   ├── BSP_MEM_ALLOC (DM_Motor_t)
+  ├── Master ID 校验 (rx_id 必须大于 tx_id)
   ├── BSP_CAN_Device_Init()          ── 注册 CAN 设备 + Filter
   ├── PIDInit() / LQRInit()          ── 初始化控制器
   ├── Module_Offline_register()       ── 离线检测
   ├── Motor_DM_Cmd(CLEAR_ERROR)      ── 清除错误
   ├── Motor_DM_Cmd(MOTOR_START)      ── 启动电机
+  ├── base.Apply = dm_apply
   └── Motor_Register()               ── 注册到全局链表
 
-每周期调用:
-Motor_UpdateAll()
-  └── dm_ControlAndSend()
-        ├── PID / LQR 计算 (同 DJI 逻辑)
-        └── 按 mode_type 分发:
-              ├── DM_MIT_MODE  → mit_ctrl(pos, vel, kp, kd, torque)
-              ├── DM_POS_MODE  → pos_speed_ctrl(pos_deg, vel)
-              ├── DM_SPD_MODE  → speed_ctrl(vel)
-              └── DM_PSI_MODE  → psi_ctrl(pos, vel, current)
-        └── BSP_DWT_Delay(200us)      ── 帧间隔保护
+每周期调度:
+Motor_ControlAll()
+  └── 统一控制计算                    ── 阶段1 (基类): 离线/禁用→ZeroState, 开环→跳过, 闭环→Motor_CalculateTorque
+
+Motor_ApplyAll()
+  └── dm_apply()                     ── 阶段2: 离线/禁用发零值帧, 否则按 mode_type 分发:
+        ├── DM_MIT_MODE  → mit_ctrl(pos, vel, kp, kd, output_torque)
+        ├── DM_POS_MODE  → pos_speed_ctrl(ref, PI)
+        ├── DM_SPD_MODE  → speed_ctrl(ref)
+        └── DM_PSI_MODE  → psi_ctrl(0, 0, ref)
 ```
 
 ### 各模式发包行为
@@ -124,31 +127,7 @@ DM_Motor_t *Motor_DM_Init(Motor_Init_Config_s *config, uint32_t DM_Mode_type);
 ```
 
 ```c
-void Motor_DM_Start(DM_Motor_t *motor);
-```
-
-```c
-void Motor_DM_Stop(DM_Motor_t *motor);
-```
-
-```c
-void Motor_DM_SetRef(DM_Motor_t *motor, float ref);
-```
-
-```c
-void Motor_DM_ChangeFeed(DM_Motor_t *motor, Closeloop_Type_e loop, uint8_t feedback_source);
-```
-
-```c
-void Motor_DM_OuterLoop(DM_Motor_t *motor, Closeloop_Type_e closeloop_type);
-```
-
-```c
 void Motor_DM_Cmd(DM_Motor_t *motor, DMMotor_Mode_e cmd);
-```
-
-```c
-void Motor_DM_SetForwardTorque(DM_Motor_t *motor, float torque);
 ```
 
 ## 错误码
@@ -171,3 +150,4 @@ void Motor_DM_SetForwardTorque(DM_Motor_t *motor, float torque);
 | v1.0 | 2026-05-11 | 初始版本 |
 | v1.1 | 2026-05-18 | fix:掉线失能问题，增加前馈力矩补偿 |
 | v1.2 | 2026-05-23 | fix:增加外部指针检查，取消延时, 并增加id检查 |
+| v2.0 | 2026-08-07 | 适配新架构: 控制计算上移基类 + 统一运行 API + 两阶段调度 |

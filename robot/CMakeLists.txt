@@ -8,4 +8,8 @@ target_include_directories(robot PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(robot PUBLIC stm32cubemx azrtos::threadx utils bsp CMSISDSP modules app)
+if(TARGET CMSISDSP)
+    target_link_libraries(robot PUBLIC stm32cubemx azrtos::threadx utils bsp CMSISDSP modules app)
+else()
+    target_link_libraries(robot PUBLIC stm32cubemx azrtos::threadx utils bsp modules app)
+endif()

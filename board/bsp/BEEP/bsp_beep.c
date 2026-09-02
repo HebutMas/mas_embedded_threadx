@@ -17,6 +17,8 @@ void BSP_BEEP_Init()
     PWM_Init_Config pwm_config = {.htim = &htim12, .Channel = TIM_CHANNEL_2, .dutyx10 = 0, .Mode = PWM_MODE_BLOCKING};
 #elif defined(STM32F407xx)
     PWM_Init_Config pwm_config = {.htim = &htim4, .Channel = TIM_CHANNEL_3, .dutyx10 = 0, .Mode = PWM_MODE_BLOCKING};
+#elif defined(STM32F105xC) || defined(STM32F103xB)
+    PWM_Init_Config pwm_config = {.htim = NULL, .Channel = 0, .dutyx10 = 0, .Mode = PWM_MODE_BLOCKING};
 #endif
 
     beep_pwm_dev = BSP_PWM_Device_Init(&pwm_config);

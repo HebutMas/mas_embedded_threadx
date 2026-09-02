@@ -1,6 +1,5 @@
 #include "motor_zdt.h"
 #include "bsp_def.h"
-#include "module_offline.h"
 #include <string.h>
 
 #define LOG_TAG "motor_uart"
@@ -73,7 +72,8 @@ static void zdt_position_cmd(UART_Motor_t *m, int32_t pulses, uint16_t speed_rpm
     BSP_UART_Send(m->uart_dev, m->tx_buf, 13, TX_WAIT_FOREVER);
 }
 
-static void zdt_ControlAndSend(Motor_Base *base)
+/* 开环直通: 无控制计算阶段, loop_type 恒为 OPEN_LOOP 由基类统一跳过 */
+static void zdt_apply(Motor_Base *base)
 {
     UART_Motor_t *m = MOTOR_GET_DERIVED(base, UART_Motor_t);
 
@@ -94,7 +94,7 @@ static void zdt_ControlAndSend(Motor_Base *base)
         m->enable_state = 1;
     }
 
-    if (base->setting.loop_type & ANGLE_LOOP)
+    if (m->mode == UART_MODE_POSITION)
     {
         /* 位置模式: ref = 脉冲数 */
         int32_t  pulses    = (int32_t)base->controller.ref;
@@ -123,13 +123,15 @@ UART_Motor_t *Motor_ZDT_Init(Motor_Init_Config_s *config, uint8_t addr, uint16_t
     }
     memset(motor, 0, sizeof(UART_Motor_t));
 
-    motor->base.type      = ZDT_STEEP_MOTOR;
-    motor->base.transport = MOTOR_TRANSPORT_UART;
-    motor->base.info      = config->motor_init_info;
-    motor->base.setting   = config->setting_init_config;
-    motor->addr           = addr;
-    motor->pulse_per_rev  = pulse_per_rev;
-    motor->accel          = accel;
+    motor->base.type           = ZDT_STEEP_MOTOR;
+    motor->base.transport      = MOTOR_TRANSPORT_UART;
+    motor->base.info           = config->motor_init_info;
+    motor->base.setting        = config->setting_init_config;
+    motor->base.setting.loop_type = OPEN_LOOP; /* 开环直通: 基类跳过控制计算 */
+    motor->addr                = addr;
+    motor->pulse_per_rev       = pulse_per_rev;
+    motor->accel               = accel;
+    motor->mode                = UART_MODE_SPEED;
 
     UART_Device *uart = BSP_UART_Device_Init(&config->transport_config.uart);
     if (!uart)
@@ -143,7 +145,8 @@ UART_Motor_t *Motor_ZDT_Init(Motor_Init_Config_s *config, uint8_t addr, uint16_t
 
     //motor->base.offline_dev = Module_Offline_register(&config->offline_init_config);
 
-    motor->base.ControlAndSend = zdt_ControlAndSend;
+    /* 绑定调度,注册到全局链表 */
+    motor->base.Apply = zdt_apply;
     Motor_Register(&motor->base);
 
     LOG_I("zdt stepper init (addr=%d, ppr=%d, accel=%d)", addr, pulse_per_rev, accel);
@@ -164,12 +167,7 @@ void Motor_ZDT_Stop(UART_Motor_t *motor)
     motor->enable_state = 0xFF;
 }
 
-void Motor_ZDT_SetRef(UART_Motor_t *motor, float ref) { motor->base.controller.ref = ref; }
-
 void Motor_ZDT_SetMode(UART_Motor_t *motor, UART_Mode_e mode)
 {
-    if (mode == UART_MODE_POSITION)
-        motor->base.setting.loop_type = ANGLE_LOOP;
-    else
-        motor->base.setting.loop_type = SPEED_LOOP;
+    motor->mode = mode;
 }

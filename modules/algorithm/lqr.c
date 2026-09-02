@@ -1,5 +1,7 @@
 #include "lqr.h"
+#if defined(STM32F407xx) || defined(STM32H723xx)
 #include <arm_math.h>
+#endif
 #include <string.h>
 
 void LQRInit(LQRInstance *lqr, LQR_Init_Config_s *config)

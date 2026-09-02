@@ -40,8 +40,8 @@ void PowerControl_Register(Motor_Base *motor, PowerCtrl_Role_e role, PowerCtrl_P
 void PowerControl_SetLimit(float power_limit_w, float buffer_energy_j, uint8_t use_buffer);
 
 /**
- * @brief 执行功率分配 (修改 motor->controller.output)
- * @note  在 Motor_UpdateAll() 之后、Motor_DJI_Flush() 之前调用
+ * @brief 执行功率分配
+ * @note  在 Motor_ControlAll() 之后、Motor_ApplyAll() 之前调用
  */
 void PowerControl_Update(void);
 
