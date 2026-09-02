@@ -3,9 +3,9 @@
 # 注意：已配置过的 build 目录以缓存值为准，改本文件默认值不影响旧 build 目录
 
 # 目标机器人 & 板型
-set(ROBOT "test" CACHE STRING "Target robot")
+set(ROBOT "sentry" CACHE STRING "Target robot")
 set_property(CACHE ROBOT PROPERTY STRINGS hero engineer infantry3 infantry4 infantry5 drone sentry darts customcontrol)
-set(BOARD "single" CACHE STRING "Board role")
+set(BOARD "gimbal" CACHE STRING "Board role") # sentry has no single_board, only gimbal/chassis
 set_property(CACHE BOARD PROPERTY STRINGS single gimbal chassis)
 
 # 板型校验
