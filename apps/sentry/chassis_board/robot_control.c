@@ -36,9 +36,9 @@ static void robot_control_task(ULONG thread_input)
         }
         else
         {
-            // 板间 int8 (-10~+10) → 实际速度 (m/s)
-            chassis_cmd.vx           = (float)chassis_recv_cmd.vx / 10.0f * CHASSIS_MAX_SPEED_MPS;
-            chassis_cmd.vy           = (float)chassis_recv_cmd.vy / 10.0f * CHASSIS_MAX_SPEED_MPS;
+            // 板间底盘系 mm/s -> m/s；线速度已经在云台板完成坐标转换
+            chassis_cmd.vx           = (float)chassis_recv_cmd.vx / 1000.0f;
+            chassis_cmd.vy           = (float)chassis_recv_cmd.vy / 1000.0f;
             chassis_cmd.wz           = (float)chassis_recv_cmd.wz / 10.0f * CHASSIS_MAX_SPEED_MPS;
             // 编码器差值 → 角度: ecd / 8191 * 360
             chassis_cmd.offset_angle = (float)chassis_recv_cmd.offset_angle * 360.0f / 8191.0f;
