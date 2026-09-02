@@ -78,7 +78,6 @@ mas_embedded_threadx/
 │
 ├── utils/                         # 通用工具库
 │   ├── ulog/                      # 日志系统（基于 SEGGER RTT）
-│   ├── list/                      # 通用链表
 │   ├── kfifo/                     # 环形缓冲区
 │   └── utils_init.c / .h          # 工具层初始化
 │
