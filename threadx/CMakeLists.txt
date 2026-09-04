@@ -12,7 +12,7 @@ if(NOT DEFINED THREADX_ARCH)
         "Supported values: cortex_m4, cortex_m7")
 endif()
 
-set(_THREADX_SUPPORTED_ARCHS cortex_m4 cortex_m7)
+set(_THREADX_SUPPORTED_ARCHS cortex_m3 cortex_m4 cortex_m7)
 if(NOT THREADX_ARCH IN_LIST _THREADX_SUPPORTED_ARCHS)
   message(FATAL_ERROR "Unsupported THREADX_ARCH: '${THREADX_ARCH}'. "
         "Supported values: ${_THREADX_SUPPORTED_ARCHS}")
@@ -305,7 +305,8 @@ target_include_directories(${PROJECT_NAME}
 target_compile_definitions(${PROJECT_NAME}
     PUBLIC
         TX_INCLUDE_USER_DEFINE_FILE
-        TX_ENABLE_FPU_SUPPORT
+        $<$<STREQUAL:${THREADX_ARCH},cortex_m4>:TX_ENABLE_FPU_SUPPORT>
+        $<$<STREQUAL:${THREADX_ARCH},cortex_m7>:TX_ENABLE_FPU_SUPPORT>
 )
 
 # ---------------------------------------------------------------------------

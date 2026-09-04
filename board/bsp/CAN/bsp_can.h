@@ -13,6 +13,8 @@
 #include "fdcan.h"
 #elif defined(STM32F407xx)
 #include "can.h"
+#elif defined(STM32F105xC) || defined(STM32F103xB)
+#include "can.h"
 #endif
 
 #include "kfifo.h"
@@ -21,8 +23,10 @@
 
 #if defined(STM32H723xx)
 #define BSP_CAN_BUS_NUM 3
-#elif defined(STM32F407xx)
+#elif defined(STM32F407xx) || defined(STM32F105xC)
 #define BSP_CAN_BUS_NUM 2
+#elif defined(STM32F103xB)
+#define BSP_CAN_BUS_NUM 1
 #endif
 
 #if defined(STM32H723xx)
@@ -32,12 +36,19 @@
 #define BSP_CAN_IS_HANDLE1(p) ((p) == BSP_CAN_HANDLE1)
 #define BSP_CAN_IS_HANDLE2(p) ((p) == BSP_CAN_HANDLE2)
 #define BSP_CAN_IS_HANDLE3(p) ((p) == BSP_CAN_HANDLE3)
-#elif defined(STM32F407xx)
+#elif defined(STM32F407xx) || defined(STM32F105xC)
 #define BSP_CAN_HANDLE1       &hcan1
 #define BSP_CAN_HANDLE2       &hcan2
 #define BSP_CAN_HANDLE3       NULL
 #define BSP_CAN_IS_HANDLE1(p) ((p) == BSP_CAN_HANDLE1)
 #define BSP_CAN_IS_HANDLE2(p) ((p) == BSP_CAN_HANDLE2)
+#define BSP_CAN_IS_HANDLE3(p) (0)
+#elif defined(STM32F103xB)
+#define BSP_CAN_HANDLE1       &hcan
+#define BSP_CAN_HANDLE2       NULL
+#define BSP_CAN_HANDLE3       NULL
+#define BSP_CAN_IS_HANDLE1(p) ((p) == BSP_CAN_HANDLE1)
+#define BSP_CAN_IS_HANDLE2(p) (0)
 #define BSP_CAN_IS_HANDLE3(p) (0)
 #endif
 
@@ -57,6 +68,8 @@ typedef struct
     FDCAN_HandleTypeDef *hcan;
 #elif defined(STM32F407xx)
     CAN_HandleTypeDef *hcan;
+#elif defined(STM32F105xC) || defined(STM32F103xB)
+    CAN_HandleTypeDef *hcan;
 #endif
     uint32_t             tx_id;
     uint32_t             rx_id;
@@ -70,6 +83,8 @@ typedef struct
 #if defined(STM32H723xx)
     FDCAN_HandleTypeDef *hcan;
 #elif defined(STM32F407xx)
+    CAN_HandleTypeDef *hcan;
+#elif defined(STM32F105xC) || defined(STM32F103xB)
     CAN_HandleTypeDef *hcan;
 #endif
     uint32_t id;
@@ -101,6 +116,8 @@ typedef struct
 #if defined(STM32H723xx)
     FDCAN_HandleTypeDef *hcan;
 #elif defined(STM32F407xx)
+    CAN_HandleTypeDef *hcan;
+#elif defined(STM32F105xC) || defined(STM32F103xB)
     CAN_HandleTypeDef *hcan;
 #endif
     can_dev_slot_t devices[BSP_CAN_MAX_DEV_PER_BUS];  /* 设备查找表 */

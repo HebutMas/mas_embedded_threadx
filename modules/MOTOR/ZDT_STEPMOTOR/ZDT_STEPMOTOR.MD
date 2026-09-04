@@ -23,6 +23,7 @@ typedef struct {
     uint8_t      enable_state;   // 使能状态缓存 (0=失能, 1=使能, 0xFF=强制刷新)
     uint16_t     pulse_per_rev;  // 每圈脉冲数 (如 3200 = 16细分)
     uint8_t      accel;          // 加速度档位 (0-255, 0=无加减速曲线)
+    UART_Mode_e  mode;           // 控制模式 (UART_MODE_SPEED / UART_MODE_POSITION)
     float        position_rad;   // 实时位置 (rad)
     float        velocity_rpm;   // 实时转速 (RPM)
 } UART_Motor_t;
@@ -81,20 +82,25 @@ typedef struct {
 ```
 Motor_ZDT_Init()
   ├── BSP_MEM_ALLOC (UART_Motor_t)
+  ├── loop_type 强制 = OPEN_LOOP      ── 开环直通, 基类跳过控制计算
+  ├── mode = UART_MODE_SPEED          ── 默认速度模式
   ├── BSP_UART_Device_Init()         ── 注册 UART 设备
-  ├── Module_Offline_register()       ── 离线检测
+  ├── base.Apply = zdt_apply         (无离线检测, 步进默认在线)
   └── Motor_Register()               ── 注册到全局链表
 
-每周期调用:
-Motor_UpdateAll()
-  └── zdt_ControlAndSend()
+每周期调度:
+Motor_ControlAll()
+  └── 统一控制计算                    ── 阶段1 (基类): loop_type==OPEN_LOOP → 跳过
+
+Motor_ApplyAll()
+  └── zdt_apply()                    ── 阶段2:
         ├── if (!enableflag)
         │     └── enable_state != 0 ? → zdt_enable(m, 0), enable_state = 0
         │     └── return
         ├── if (enable_state != 1) → zdt_enable(m, 1), enable_state = 1
-        └── 按 loop_type 分发:
-              ├── ANGLE_LOOP → zdt_position_cmd(pulses, speed_rpm)
-              └── otherwise   → zdt_speed_cmd(rpm)
+        └── 按 m->mode 分发:
+              ├── UART_MODE_POSITION → zdt_position_cmd(pulses, speed_rpm)
+              └── UART_MODE_SPEED    → zdt_speed_cmd(rpm)
 ```
 
 ### 使能状态机
@@ -118,19 +124,15 @@ UART_Motor_t *Motor_ZDT_Init(Motor_Init_Config_s *config,
 ```
 
 ```c
-void Motor_ZDT_Start(UART_Motor_t *motor);
+void Motor_ZDT_Start(UART_Motor_t *motor);   /* 使能 (强制刷新使能命令) */
 ```
 
 ```c
-void Motor_ZDT_Stop(UART_Motor_t *motor);
+void Motor_ZDT_Stop(UART_Motor_t *motor);    /* 失能 + 发送停止命令 */
 ```
 
 ```c
-void Motor_ZDT_SetRef(UART_Motor_t *motor, float ref);
-```
-
-```c
-void Motor_ZDT_SetMode(UART_Motor_t *motor, UART_Mode_e mode);
+void Motor_ZDT_SetMode(UART_Motor_t *motor, UART_Mode_e mode);  /* 切换速度/位置模式 */
 ```
 
 ## 版本历史
@@ -139,3 +141,4 @@ void Motor_ZDT_SetMode(UART_Motor_t *motor, UART_Mode_e mode);
 |------|------|------|
 | v1.0 | 2026-05-11 | 初始版本|
 | v1.1 | 2026-05-18 | 移除掉线检测，默认步进在线，不接收电机反馈信息 |
+| v2.0 | 2026-08-07 | 适配新架构: 开环直通 + mode 字段独立控制模式 + 统一运行 API |

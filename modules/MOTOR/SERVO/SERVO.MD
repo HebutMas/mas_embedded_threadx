@@ -2,8 +2,7 @@
 
 ## 概述
 
-PWM 舵机驱动模块，通过 PWM 脉宽控制标准舵机角度。
-
+PWM 舵机驱动模块，通过 PWM 脉宽控制标准舵机角度。舵机为**开环电机**（`loop_type` 在 Init 时强制设为 `OPEN_LOOP`）
 ## 架构设计
 
 ### 数据结构
@@ -35,15 +34,20 @@ pulse  = min_pulse + ratio * (max_pulse - min_pulse)
 ```
 Motor_Servo_Init()
   ├── BSP_MEM_ALLOC (Servo_Motor_t)
+  ├── loop_type 强制 = OPEN_LOOP      ── 开环电机, 基类跳过控制计算
   ├── BSP_PWM_Device_Init()          ── 注册 PWM 设备
   ├── BSP_PWM_Start()                ── 启动 PWM 输出
   ├── Module_Offline_register()       ── 离线检测
+  ├── base.Apply = servo_apply
   └── Motor_Register()               ── 注册到全局链表
 
-每周期调用:
-Motor_UpdateAll()
-  └── servo_ControlAndSend()
-        ├── if (!enableflag) → return (不输出)
+每周期调度:
+Motor_ControlAll()
+  └── 统一控制计算                    ── 阶段1 (基类): loop_type==OPEN_LOOP → 跳过
+
+Motor_ApplyAll()
+  └── servo_apply()                  ── 阶段2: 
+        ├── if (!enableflag) → return (保持当前角度)
         └── pulse = angle_to_pulse(base->controller.ref)
         └── BSP_PWM_SetPulse(pwm_dev, pulse)
 ```
@@ -66,21 +70,9 @@ Servo_Motor_t *Motor_Servo_Init(Motor_Init_Config_s *config,
                                 float min_angle, float max_angle);
 ```
 
-```c
-void Motor_Servo_Start(Servo_Motor_t *motor);
-```
-
-```c
-void Motor_Servo_Stop(Servo_Motor_t *motor);
-```
-
-```c
-void Motor_Servo_SetRef(Servo_Motor_t *motor, float ref_deg);
-```
-
-
 ## 版本历史
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1.0 | 2026-05-11 | 初始版本 |
+| v2.0 | 2026-08-07 | 适配新架构: 开环直通 + 统一运行 API + 两阶段调度 |

@@ -15,6 +15,8 @@
 #define BSP_UART_DEVICE_NUM 6
 #elif defined(STM32F407xx)
 #define BSP_UART_DEVICE_NUM 3
+#elif defined(STM32F105xC) || defined(STM32F103xB)
+#define BSP_UART_DEVICE_NUM 3
 #endif
 
 typedef struct UART_Device UART_Device;

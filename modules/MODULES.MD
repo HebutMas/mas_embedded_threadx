@@ -155,21 +155,21 @@ set(VL53L0X_TASK_STACK_SIZE 512)
 set(VL53L0X_TASK_PRIORITY   10)
 ```
 
-### 步骤 5：在 generate_headers.cmake 添加参数宏导出
+### 步骤 5：在 module_config.h.in 模板添加参数宏导出
 
-在 `apps/generate_headers.cmake` 中，于 `module_config.h` 的生成内容里添加该模块的参数：
+在 `apps/module_config.h.in` 模板中，追加该模块的参数宏（构建时由 `cmake/board_common.cmake` 的 `configure_file(... @ONLY)` 自动生成 `module_config.h`）：
 
-```cmake
+```c
 /* VL53L0X 参数 */
-#define VL53L0X_TASK_STACK_SIZE ${VL53L0X_TASK_STACK_SIZE}
-#define VL53L0X_TASK_PRIORITY   ${VL53L0X_TASK_PRIORITY}
+#define VL53L0X_TASK_STACK_SIZE @VL53L0X_TASK_STACK_SIZE@
+#define VL53L0X_TASK_PRIORITY   @VL53L0X_TASK_PRIORITY@
 ```
 
-> 若参数为可选硬件句柄（如 `VL53L0X_I2C`），使用 `_gen_cmakedefine` 模拟 `#cmakedefine` 行为：
-> ```cmake
-> _gen_cmakedefine(_VL53L0X_I2C VL53L0X_I2C VL53L0X_I2C)
+> 若参数为可选硬件句柄（如 `VL53L0X_I2C`），使用 `#cmakedefine`：未设置时该行不生成，
+> 模块代码中可用 `#ifdef VL53L0X_I2C` 判断。
+> ```c
+> #cmakedefine VL53L0X_I2C @VL53L0X_I2C@
 > ```
-> 然后在 `module_config.h` 写入内容中引用 `${_VL53L0X_I2C}`。
 
 ### 步骤 6：在机器人配置中使能 / 覆盖
 
@@ -193,7 +193,7 @@ set(VL53L0X_TASK_STACK_SIZE 1024)
 | 2 | `modules/CMakeLists.txt` | 加 `if(MODULE_XXX)` 块 |
 | 3 | `modules/module_init.c` | 加 `#include` + `Init()` 调用 |
 | 4 | `modules/module_config.cmake` | 添加默认列表和参数 |
-| 5 | `apps/generate_headers.cmake` | 添加该模块的参数宏导出（数值宏直接 `${VAR}`，可选硬件句柄用 `_gen_cmakedefine`） |
+| 5 | `apps/module_config.h.in` | 添加该模块的参数宏导出（普通宏用 `#define VAR @VAR@`，可选硬件句柄用 `#cmakedefine`） |
 | 6 | `apps/<robot>/robot.cmake` | 覆盖模块列表 / 参数 |
 
 ## 模块命名规范

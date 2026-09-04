@@ -50,50 +50,23 @@ Motor_DJI_Init()
   ├── Module_Offline_register()       ── 离线检测
   └── Motor_Register()               ── 注册到全局链表
 
-每周期调用:
-Motor_UpdateAll()
-  └── dji_control()                   ── PID/LQR 计算
-        ├── CalculatePIDOutput()       ── 电流 = PID(measure, ref)
-        └── CalculateLQROutput()       ── 电流 = LQR(measure, ref)
-        └── 填充 sender_assignment[group].data[num*2, num*2+1]
+每周期调度:
+Motor_ControlAll()
+  └── 统一控制计算                    ── 阶段1 (基类): 离线/禁用→ZeroState, 开环→跳过,
+        └── Motor_CalculateTorque()     ── 扭矩 = PID/LQR(measure, ref) + 前馈 + 限幅
 
-Motor_DJI_Flush()                     ── 批量发送所有启用的分组
-  └── for each enabled group:
-        BSP_CAN_SendMessage(&sender_assignment[i])
+Motor_ApplyAll()
+  └── dji_apply()                      ── 阶段2: 扭矩 → 电流整型
+        ├── 离线/禁用 → 槽位写零
+        └── 填充 sender_assignment[group].data[num*2, num*2+1]
+        └── dji_batch_send()            ── 组内计数, 最后一个电机发送整帧
+              └── BSP_CAN_SendMessage(&sender_assignment[group])
 ```
 
 ## API 接口说明
 
 ```c
 DJI_Motor_t *Motor_DJI_Init(Motor_Init_Config_s *config);
-```
-
-```c
-void Motor_DJI_Start(DJI_Motor_t *motor);
-```
-
-```c
-void Motor_DJI_Stop(DJI_Motor_t *motor);
-```
-
-```c
-void Motor_DJI_SetRef(DJI_Motor_t *motor, float ref);
-```
-
-```c
-void Motor_DJI_ChangeFeed(DJI_Motor_t *motor, Closeloop_Type_e loop, uint8_t feedback_source);
-```
-
-```c
-void Motor_DJI_OuterLoop(DJI_Motor_t *motor, Closeloop_Type_e outer_loop);
-```
-
-```c
-void Motor_DJI_Flush(void);
-```
-
-```c
-void Motor_DJI_SetForwardTorque(DJI_Motor_t *motor, float torque);
 ```
 
 ## 版本历史
@@ -103,3 +76,4 @@ void Motor_DJI_SetForwardTorque(DJI_Motor_t *motor, float torque);
 | v1.0 | 2026-05-11 | 初始版本|
 | v1.1 | 2026-05-18 | fix:掉线失能问题，增加前馈力矩补偿 |
 | v1.2 | 2026-05-23 | fix:增加外部指针检查 |
+| v2.0 | 2026-08-07 | 适配新架构: 控制计算上移基类 + 统一运行 API + 组内计数发送 |
