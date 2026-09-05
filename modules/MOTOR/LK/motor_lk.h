@@ -8,10 +8,10 @@ typedef struct {
     int8_t   temperature ;            /*温度*/
     int16_t  iq ;                     /*转矩电流（除MS）*/
     uint16_t power;                   /*电机的输出功率值（仅MS）*/
-    int16_t  speed;                   /*电机速度*/
-    uint16_t encoder;                 /*编码器位置(编码器位数依据电机而定)*/
-    float    last_single_round_angle; /*上一周期单圈角度(减速前, rad)*/
-    int32_t  total_round;             /*累计圈数*/
+    int16_t  speed;                   /*电机速度(电机轴端)*/
+    uint16_t encoder;                 /*编码器位置(电机轴端, 位数依据电机而定)*/
+    float    last_single_round_angle; /*上一周期单圈角度(电机轴端, rad)*/
+    int32_t  total_round;             /*电机轴端累计圈数: 单圈角每跨 2π 边界 ±1*/
     uint8_t  first_frame;             /*首帧标志: 0=未接收, 1=已接收*/
 } LK_Measure_s;
 

@@ -1,6 +1,7 @@
 #include "gimbal_func.h"
 #include "module_bmi088.h"
 #include "module_ins.h"
+#include "motor_base.h"
 #include "motor_dji.h"
 #include "motor_damiao.h"
 #include "user_lib.h"
@@ -9,9 +10,9 @@
 #define LOG_LVL LOG_LVL_DBG
 #include "ulog_def.h"
 
-// gimbal 电机指针定义
-static DJI_Motor_t *yaw_motor   = NULL; // 小云台yaw电机指针
-static DM_Motor_t  *pitch_motor = NULL; // pitch电机指针
+// gimbal 电机指针定义 (统一基类; 需 DJI ecd 处 MOTOR_GET_DERIVED 转换)
+static Motor_Base *yaw_motor   = NULL; // 小云台yaw电机指针
+static Motor_Base *pitch_motor = NULL; // pitch电机指针
 // 姿态角数据
 const static Ins_t           *ins        = NULL;
 const static Bmi088_device_t *bmi088_dev = NULL;
@@ -60,7 +61,7 @@ void gimbal_init(void)
                 .loop_type             = ANGLE_LOOP,
             },
         .motor_init_info = {.motor_type = GM6020_CURRENT, .gear_ratio = 1, .max_torque = 2.223f, .torque_constant = 0.741f}};
-    yaw_motor = Motor_DJI_Init(&yaw_config);
+    yaw_motor = (Motor_Base *)Motor_DJI_Init(&yaw_config);
     if (yaw_motor == NULL)
     {
         LOG_E("yaw_motor init failed");
@@ -101,7 +102,7 @@ void gimbal_init(void)
                                                 .loop_type             = ANGLE_LOOP,
                                             },
                                         .motor_init_info = {.motor_type = DM4310, .gear_ratio = 10, .max_torque = 10, .torque_constant = 0.093f}};
-    pitch_motor                      = Motor_DM_Init(&pitch_config, DM_MIT_MODE);
+    pitch_motor                      = (Motor_Base *)Motor_DM_Init(&pitch_config, DM_MIT_MODE);
     if (pitch_motor == NULL)
     {
         LOG_E("pitch_motor init failed");
@@ -113,19 +114,19 @@ void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
 {
     if (gimbal_cmd != NULL)
     {
-        if (!Module_Offline_get_device_status(yaw_motor->base.offline_dev) && !Module_Offline_get_device_status(pitch_motor->base.offline_dev))
+        if (!Module_Offline_get_device_status(yaw_motor->offline_dev) && !Module_Offline_get_device_status(pitch_motor->offline_dev))
         {
             switch (gimbal_cmd->gimbal_mode)
             {
             case gimbal_zero_force:
-                Motor_Stop((Motor_Base *)yaw_motor);
-                Motor_Stop((Motor_Base *)pitch_motor);
+                Motor_Stop(yaw_motor);
+                Motor_Stop(pitch_motor);
                 break;
             case gimbal_gyro_mode:
-                Motor_Start((Motor_Base *)yaw_motor);
-                Motor_Start((Motor_Base *)pitch_motor);
-                Motor_SetRef((Motor_Base *)yaw_motor, (gimbal_cmd->yaw * DEGREE_2_RAD));
-                Motor_SetRef((Motor_Base *)pitch_motor, gimbal_cmd->pitch * DEGREE_2_RAD);
+                Motor_Start(yaw_motor);
+                Motor_Start(pitch_motor);
+                Motor_SetRef(yaw_motor, (gimbal_cmd->yaw * DEGREE_2_RAD));
+                Motor_SetRef(pitch_motor, gimbal_cmd->pitch * DEGREE_2_RAD);
                 break;
             case gimbal_auto_mode:
                 break;
@@ -133,13 +134,13 @@ void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
         }
         else
         {
-            Motor_Stop((Motor_Base *)yaw_motor);
-            Motor_Stop((Motor_Base *)pitch_motor);
+            Motor_Stop(yaw_motor);
+            Motor_Stop(pitch_motor);
         }
     }
     // 数据反馈
-    if (!Module_Offline_get_device_status(yaw_motor->base.offline_dev) && yaw_ecd != NULL)
+    if (!Module_Offline_get_device_status(yaw_motor->offline_dev) && yaw_ecd != NULL)
     {
-        *yaw_ecd = yaw_motor->measure.ecd;
+        *yaw_ecd = MOTOR_GET_DERIVED(yaw_motor, DJI_Motor_t)->measure.ecd; /* 仅上报需要 DJI 原始编码器 */
     }
 }

@@ -1,5 +1,4 @@
 #include "chassis_type.h"
-#include "motor_dji.h"
 #include "user_lib.h"
 #include <math.h>
 
@@ -23,7 +22,7 @@ static void AngleLoop_f(float *angle, float max)
 
 /* 对外函数 */
 
-void Chassis_Swerve_Calc(DJI_Motor_t *motors[8], const Chassis_Swerve_Config_s *cfg, float vx, float vy, float vw)
+void Chassis_Swerve_Calc(Motor_Base *motors[8], const Chassis_Swerve_Config_s *cfg, float vx, float vy, float vw)
 {
     const float *align_rad = cfg->align_rad; /* LF LB RB RF */
 
@@ -58,7 +57,7 @@ void Chassis_Swerve_Calc(DJI_Motor_t *motors[8], const Chassis_Swerve_Config_s *
 
         /* 驱动电机 (3508) 目标速度 */
         float velocity_vector  = sqrtf(local_vx * local_vx + local_vy * local_vy);
-        float target_speed_rad = (velocity_vector / cfg->radius_wheel_m) * cfg->decele_ratio;
+        float target_speed_rad = velocity_vector / cfg->radius_wheel_m;/* 输出轴口径: measure 已为轮速, 线速度/轮半径 */
 
         /* 转向电机 (6020) 目标角度 */
         float  target_steer_rad;
@@ -74,7 +73,7 @@ void Chassis_Swerve_Calc(DJI_Motor_t *motors[8], const Chassis_Swerve_Config_s *
             float target_abs_angle = align_rad[i] + vector_rad;
             AngleLoop_f(&target_abs_angle, TWO_PI);
 
-            float current_single = motors[i + 4]->base.measure.total_angle;
+            float current_single = motors[i + 4]->measure.total_angle;
             AngleLoop_f(&current_single, TWO_PI);
 
             float diff = target_abs_angle - current_single;
@@ -99,18 +98,18 @@ void Chassis_Swerve_Calc(DJI_Motor_t *motors[8], const Chassis_Swerve_Config_s *
             last_target_angle_rad[i] = target_steer_rad;
         }
 
-        Motor_SetRef((Motor_Base *)motors[i], target_speed_rad * (float)drct_factor);
+        Motor_SetRef(motors[i], target_speed_rad * (float)drct_factor);
 
-        float delta = target_steer_rad - motors[i + 4]->base.measure.total_angle;
+        float delta = target_steer_rad - motors[i + 4]->measure.total_angle;
         AngleLoop_f(&delta, TWO_PI);
-        Motor_SetRef((Motor_Base *)motors[i + 4], motors[i + 4]->base.measure.total_angle + delta);
+        Motor_SetRef(motors[i + 4], motors[i + 4]->measure.total_angle + delta);
     }
 }
 
-void Chassis_Mecanum_Calc(DJI_Motor_t *motors[4], const Chassis_Diff_Config_s *cfg, float vx, float vy, float vw)
+void Chassis_Mecanum_Calc(Motor_Base *motors[4], const Chassis_Diff_Config_s *cfg, float vx, float vy, float vw)
 {
     const float L            = (cfg->wheel_base_x + cfg->wheel_base_y) / 2.0f;
-    const float speed_factor = cfg->decele_ratio / cfg->wheel_radius;
+    const float speed_factor = 1.0f / cfg->wheel_radius; /* 输出轴口径: measure 已为轮速, 线速度/轮半径 */
 
     float wheel_speed[4];
     wheel_speed[0] = (+vx - vy - vw * L) * speed_factor;
@@ -118,15 +117,15 @@ void Chassis_Mecanum_Calc(DJI_Motor_t *motors[4], const Chassis_Diff_Config_s *c
     wheel_speed[1] = (+vx + vy - vw * L) * speed_factor;
     wheel_speed[2] = (+vx - vy + vw * L) * speed_factor;
 
-    for (int i = 0; i < 4; i++) Motor_SetRef((Motor_Base *)motors[i], wheel_speed[i]);
+    for (int i = 0; i < 4; i++) Motor_SetRef(motors[i], wheel_speed[i]);
 }
 
-void Chassis_Omni_Calc(DJI_Motor_t *motors[4], const Chassis_Diff_Config_s *cfg, float vx, float vy, float vw)
+void Chassis_Omni_Calc(Motor_Base *motors[4], const Chassis_Diff_Config_s *cfg, float vx, float vy, float vw)
 {
     const float a            = cfg->wheel_base_x / 2.0f;
     const float b            = cfg->wheel_base_y / 2.0f;
     const float rot_diff     = vw * (a - b);
-    const float speed_factor = cfg->decele_ratio / (cfg->wheel_radius * SQRT2_2);
+    const float speed_factor = 1.0f / (cfg->wheel_radius * SQRT2_2); /* 输出轴口径 */
 
     float wheel_speed[4];
     wheel_speed[0] = (+vx + vy + rot_diff) * speed_factor;
@@ -134,15 +133,15 @@ void Chassis_Omni_Calc(DJI_Motor_t *motors[4], const Chassis_Diff_Config_s *cfg,
     wheel_speed[1] = (-vx + vy - rot_diff) * speed_factor;
     wheel_speed[2] = (-vx - vy + rot_diff) * speed_factor;
 
-    for (int i = 0; i < 4; i++) Motor_SetRef((Motor_Base *)motors[i], wheel_speed[i]);
+    for (int i = 0; i < 4; i++) Motor_SetRef(motors[i], wheel_speed[i]);
 }
 
 
-Chassis_Velocity_s Chassis_Swerve_Fwd(const DJI_Motor_t *motors[8], const Chassis_Swerve_Config_s *cfg)
+Chassis_Velocity_s Chassis_Swerve_Fwd(const Motor_Base *motors[8], const Chassis_Swerve_Config_s *cfg)
 {
     const float a  = cfg->wheel_r * SQRT2_2;
     const float r2 = cfg->wheel_r * cfg->wheel_r;
-    const float R  = cfg->radius_wheel_m / cfg->decele_ratio;
+    const float R  = cfg->radius_wheel_m;
 
     float vx = 0.0f, vy = 0.0f, vw = 0.0f;
     float px[4] = {+a, +a, -a, -a};
@@ -150,10 +149,10 @@ Chassis_Velocity_s Chassis_Swerve_Fwd(const DJI_Motor_t *motors[8], const Chassi
 
     for (int i = 0; i < 4; i++)
     {
-        float steer = motors[i + 4]->base.measure.total_angle;
+        float steer = motors[i + 4]->measure.total_angle;
         AngleLoop_f(&steer, TWO_PI);
 
-        float vi  = motors[i]->base.measure.speed_rad * R;
+        float vi  = motors[i]->measure.speed_rad * R;
         float vix = vi * cosf(steer);
         float viy = vi * sinf(steer);
 
@@ -169,13 +168,13 @@ Chassis_Velocity_s Chassis_Swerve_Fwd(const DJI_Motor_t *motors[8], const Chassi
     return vel;
 }
 
-Chassis_Velocity_s Chassis_Mecanum_Fwd(const DJI_Motor_t *motors[4], const Chassis_Diff_Config_s *cfg)
+Chassis_Velocity_s Chassis_Mecanum_Fwd(const Motor_Base *motors[4], const Chassis_Diff_Config_s *cfg)
 {
     const float L = (cfg->wheel_base_x + cfg->wheel_base_y) / 2.0f;
-    const float R = cfg->wheel_radius / cfg->decele_ratio;
+    const float R = cfg->wheel_radius; /* 输出轴口径: measure.speed_rad 已为轮速 */
 
     float w[4];
-    for (int i = 0; i < 4; i++) w[i] = motors[i]->base.measure.speed_rad;
+    for (int i = 0; i < 4; i++) w[i] = motors[i]->measure.speed_rad;
 
     Chassis_Velocity_s vel;
     vel.vx = (R / 4.0f) * (w[0] + w[1] + w[2] + w[3]);
@@ -184,14 +183,14 @@ Chassis_Velocity_s Chassis_Mecanum_Fwd(const DJI_Motor_t *motors[4], const Chass
     return vel;
 }
 
-Chassis_Velocity_s Chassis_Omni_Fwd(const DJI_Motor_t *motors[4], const Chassis_Diff_Config_s *cfg)
+Chassis_Velocity_s Chassis_Omni_Fwd(const Motor_Base *motors[4], const Chassis_Diff_Config_s *cfg)
 {
     const float a = cfg->wheel_base_x / 2.0f;
     const float b = cfg->wheel_base_y / 2.0f;
-    const float R = cfg->wheel_radius / cfg->decele_ratio;
+    const float R = cfg->wheel_radius; /* 输出轴口径: measure.speed_rad 已为轮速 */
 
     float w[4];
-    for (int i = 0; i < 4; i++) w[i] = motors[i]->base.measure.speed_rad;
+    for (int i = 0; i < 4; i++) w[i] = motors[i]->measure.speed_rad;
 
     Chassis_Velocity_s vel;
     vel.vx = (w[0] - w[1] - w[2] + w[3]) * R / (2.0f * SQRT2_2);
@@ -224,19 +223,19 @@ void Chassis_Odom_Update(Chassis_Odom_s *odom, const Chassis_Velocity_s *vel, fl
     odom->yaw += vel->vw * dt;
 }
 
-void Chassis_Swerve_Odom(Chassis_Odom_s *odom, const DJI_Motor_t *motors[8], const Chassis_Swerve_Config_s *cfg, float dt)
+void Chassis_Swerve_Odom(Chassis_Odom_s *odom, const Motor_Base *motors[8], const Chassis_Swerve_Config_s *cfg, float dt)
 {
     Chassis_Velocity_s vel = Chassis_Swerve_Fwd(motors, cfg);
     Chassis_Odom_Update(odom, &vel, dt);
 }
 
-void Chassis_Mecanum_Odom(Chassis_Odom_s *odom, const DJI_Motor_t *motors[4], const Chassis_Diff_Config_s *cfg, float dt)
+void Chassis_Mecanum_Odom(Chassis_Odom_s *odom, const Motor_Base *motors[4], const Chassis_Diff_Config_s *cfg, float dt)
 {
     Chassis_Velocity_s vel = Chassis_Mecanum_Fwd(motors, cfg);
     Chassis_Odom_Update(odom, &vel, dt);
 }
 
-void Chassis_Omni_Odom(Chassis_Odom_s *odom, const DJI_Motor_t *motors[4], const Chassis_Diff_Config_s *cfg, float dt)
+void Chassis_Omni_Odom(Chassis_Odom_s *odom, const Motor_Base *motors[4], const Chassis_Diff_Config_s *cfg, float dt)
 {
     Chassis_Velocity_s vel = Chassis_Omni_Fwd(motors, cfg);
     Chassis_Odom_Update(odom, &vel, dt);

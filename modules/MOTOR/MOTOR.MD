@@ -245,9 +245,7 @@ void Motor_Start/Stop/SetRef/ChangeFeed/OuterLoop/SetForwardTorque/SetOutputTorq
 void Module_Motor_Init(void);                       
 ```
 
-## 注意事项
-- 这里的电机数据接收目前只有 CAN 的，UART 电机需自行建立 task 接收数据
-- 功率控制 (POWER_CONTROL) 直接使用 `controller.output_torque`
+- 遗留：轴端统一后仍有待实车验证项：按输出轴域重标的内环 LQR/PID 增益与功率控制阈值
 
 ## 版本历史
 
@@ -257,3 +255,4 @@ void Module_Motor_Init(void);
 | v1.1 | 2026-05-15 | 将内部指针改为const，增加前馈力矩补偿，fix：掉线失能问题 |
 | v1.2 | 2026-05-21 | 使用单向链表，方便调试 |
 | v2.0 | 2026-08-07 | 架构重构: 控制算法独立文件(PID/LQR switch 分派) + 两阶段调度 |
+| v2.1 | 2026-09-05 | 统一轴端契约: base.measure 与扭矩参数一律为输出轴端; LK/DJI 反馈按 gear_ratio 折算到输出轴, 发送电流改用输出轴 Kt(配置 torque_constant 已 ×gear 配平, 电流指令不变); LK total_angle 改用 total_round 重建(编码器绝对零点)并修正单圈角; 新增 DM4340/DM8009/DM3507/DM3519 达妙参数; 上层(power_control/chassis_type/发射)去掉二次 ratio 折算并统一使用 Motor_Base 指针 |

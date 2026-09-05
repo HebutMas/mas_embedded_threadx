@@ -75,23 +75,39 @@ static void dji_can_rx_callback(Can_Device *dev, const uint8_t *data, uint8_t le
     if (len < 8 || !dev->user_arg) return;
     DJI_Motor_t *motor = (DJI_Motor_t *)dev->user_arg;
 
-    motor->measure.last_ecd                = motor->measure.ecd;
-    motor->measure.ecd                     = ((uint16_t)data[0] << 8) | data[1];
-    motor->base.measure.single_round_angle = ECD_ANGLE_COEF_DJI_RAD * (float)motor->measure.ecd;
-    motor->measure.speed_rpm               = (int16_t)(data[2] << 8 | data[3]);
-    motor->base.measure.speed_rad          = motor->measure.speed_rpm * RPM_2_RAD_PER_SEC;
-    motor->measure.real_current            = (int16_t)(data[4] << 8 | data[5]);
-    motor->measure.temperature             = data[6];
+    motor->measure.last_ecd     = motor->measure.ecd;
+    motor->measure.ecd          = ((uint16_t)data[0] << 8) | data[1];
+    motor->measure.speed_rpm    = (int16_t)(data[2] << 8 | data[3]);
+    motor->measure.real_current = (int16_t)(data[4] << 8 | data[5]);
+    motor->measure.temperature  = data[6];
 
-    /* 多圈角度计算 */
+    /* 编码器/报文在电机轴上: 按电机轴端算单圈/转速/整圈, 末了统一折算到输出轴 */
+    const float gear_ratio       = (motor->base.info.gear_ratio > 0.0f) ? motor->base.info.gear_ratio : 1.0f;
+    float       single_motor_rad = ECD_ANGLE_COEF_DJI_RAD * (float)motor->measure.ecd;
+    float       speed_motor_rad  = motor->measure.speed_rpm * RPM_2_RAD_PER_SEC;
+
+    /* 多圈计数: 单圈角跨 2π 边界时 total_round 增减 (沿用原始 ecd 阈值判断) */
     int16_t delta_ecd = motor->measure.ecd - motor->measure.last_ecd;
     if (delta_ecd > 4096)
         motor->measure.total_round--;
     else if (delta_ecd < -4096)
         motor->measure.total_round++;
 
-    motor->base.measure.total_angle = (float)motor->measure.total_round * (2.0f * PI) + motor->base.measure.single_round_angle;
+    /* 电机轴累计角 = 整圈×2π + 当前单圈, 统一折算到输出轴 */
+    float motor_total_rad           = (float)motor->measure.total_round * (2.0f * PI) + single_motor_rad;
+    motor->base.measure.total_angle = motor_total_rad / gear_ratio;
+    motor->base.measure.speed_rad   = speed_motor_rad / gear_ratio;
 
+    /* 单圈角度(输出轴 0~2π): 去掉输出轴累计角的整圈部分, 每输出轴一整圈回绕一次 */
+    float output_single_rad = motor->base.measure.total_angle * (1.0f / (2.0f * PI));
+    output_single_rad = (output_single_rad - (float)(int32_t)output_single_rad) * (2.0f * PI);
+    if (output_single_rad < 0.0f)
+    {
+        output_single_rad += (2.0f * PI);
+    }
+    motor->base.measure.single_round_angle = output_single_rad;
+
+    /* 力矩: 镜像自下发命令, 本就为输出端扭矩 */
     motor->base.measure.torque_nm = motor->base.controller.output_torque;
 
     /* 更新在线状态 */
@@ -113,17 +129,19 @@ static void dji_apply(Motor_Base *base)
 
     float torque = base->controller.output_torque;
 
-    /* 扭矩 → 电流 → 整数值 (CAN 报文) */
+    /* 扭矩 → 电流 → 整数值 (CAN 报文)
+     * 轴端契约: output_torque / torque_constant 均为输出轴端。
+     * 电流(A) = τ_out(输出轴 Nm) / Kt(输出轴 Nm/A) */
     switch (base->info.motor_type)
     {
     case GM6020_CURRENT:
-        base->controller.output = currentToInteger(-3.0f, 3.0f, -16384, 16384, torque / (base->info.torque_constant * base->info.gear_ratio));
+        base->controller.output = currentToInteger(-3.0f, 3.0f, -16384, 16384, torque / base->info.torque_constant);
         break;
     case M3508:
-        base->controller.output = currentToInteger(-20.0f, 20.0f, -16384, 16384, torque / (base->info.torque_constant * base->info.gear_ratio));
+        base->controller.output = currentToInteger(-20.0f, 20.0f, -16384, 16384, torque / base->info.torque_constant);
         break;
     case M2006:
-        base->controller.output = currentToInteger(-10.0f, 10.0f, -10000, 10000, torque / (base->info.torque_constant * base->info.gear_ratio));
+        base->controller.output = currentToInteger(-10.0f, 10.0f, -10000, 10000, torque / base->info.torque_constant);
         break;
     default:
         base->controller.output = 0;

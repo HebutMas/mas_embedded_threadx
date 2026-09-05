@@ -81,6 +81,7 @@ typedef enum
     M2006,
     /* 达妙电机 */
     DM4310,
+    DM4340,
     DM6220,
     DM8009,
     DM3507,
@@ -93,22 +94,26 @@ typedef enum
     ZDT_STEEP_MOTOR,
 } Motor_Type_e;
 
-/* 电机基本信息 */
+/* 电机基本信息
+ * 统一轴端契约: base.measure 与以下参数以「输出轴端」(减速后) 为基准。
+ * 电机轴端(编码器/转速)通过 gear_ratio 在驱动内折算到输出轴端。
+ * LK / DM / DJI 驱动均已遵循。
+ */
 typedef struct
 {
     Motor_Type_e motor_type;
-    float        gear_ratio;
-    float        torque_constant; /* 减速前扭矩常数 (Nm/A) */
-    float        max_torque;      /* 最大力矩 (Nm) */
+    float        gear_ratio;      /* 减速比 */
+    float        torque_constant; /* 输出轴扭矩常数 (Nm/A): 输出轴端每安培扭矩 = 电机端 Kt × gear_ratio */
+    float        max_torque;      /* 输出轴端最大扭矩 (Nm) */
 } Motor_Info_s;
 
-/* 公共测量数据 */
+/* 公共测量数据 (均为输出轴端: 减速后 rad / rad/s / Nm) */
 typedef struct
 {
-    float speed_rad;          /* 角速度 (rad/s) */
-    float single_round_angle; /* 单圈角度 (rad) */
-    float total_angle;        /* 总角度 (rad)   */
-    float torque_nm;          /* 当前力矩 (Nm)  */
+    float speed_rad;          /* 输出轴角速度 (rad/s) */
+    float single_round_angle; /* 输出轴单圈角度 (rad, 0~2π) */
+    float total_angle;        /* 输出轴累计角度 (rad) */
+    float torque_nm;          /* 输出轴扭矩 (Nm)  */
 } Motor_Measure_s;
 
 /* 控制器初始化配置 */

@@ -94,42 +94,50 @@ static void lk_can_rx_callback(Can_Device *dev, const uint8_t *data, uint8_t len
         motor->measure.speed       = (int16_t)((data[5] << 8) | data[4]);
         motor->measure.encoder     = (uint16_t)((data[7] << 8) | data[6]);
 
-        /* 2. 计算基类测量值 — 电机端 (减速前) */
-        /* 速度: dps → rad/s */
-        motor->base.measure.speed_rad = motor->measure.speed * DEGREE_2_RAD;
+        /* 2. 计算基类测量值 — 输出轴端 (减速后)。编码器/转速均在电机轴上,
+         *    按 gear_ratio 统一折算到输出轴, 使 base.measure 与上层轴端契约一致 */
+        const float gear_ratio = (motor->base.info.gear_ratio > 0.0f) ? motor->base.info.gear_ratio : 1.0f;
 
-        /* 单圈角度: 编码器值 → rad (0 ~ 2π) */
+        /* 速度: 电机轴 dps → rad/s → 输出轴 */
+        motor->base.measure.speed_rad = motor->measure.speed * DEGREE_2_RAD / gear_ratio;
+
+        /* 电机轴端单圈角: 编码器原始读数 (0~2π) */
         uint16_t encoder_max            = lk_get_encoder_max(motor->base.info.motor_type);
-        float    single_round_angle_rad = ((float)motor->measure.encoder / (float)(encoder_max + 1u))
-                                         * (2.0f * PI);
-        motor->base.measure.single_round_angle = single_round_angle_rad;
+        float    single_motor_angle_rad = ((float)motor->measure.encoder / (float)(encoder_max + 1u))
+                                          * (2.0f * PI);
 
-        /* 总角度: 首帧直接赋值, 后续跨圈累加 */
+        /* 整圈计数: 单圈角跨 2π 边界时 total_round ±1 (首帧只记录基准, 不判跨圈) */
         if (!motor->measure.first_frame)
         {
-            motor->base.measure.total_angle = 0;
-            motor->measure.first_frame      = 1;
+            motor->measure.first_frame = 1;
         }
         else
         {
-            float diff       = single_round_angle_rad - motor->measure.last_single_round_angle;
-            float range      = (2.0f * PI);
-            float half_range = range * 0.5f;
-            if (diff < -half_range)
+            float diff = single_motor_angle_rad - motor->measure.last_single_round_angle;
+            if (diff < -PI)
             {
-                diff += range;
                 motor->measure.total_round++;
             }
-            else if (diff > half_range)
+            else if (diff > PI)
             {
-                diff -= range;
                 motor->measure.total_round--;
             }
-            motor->base.measure.total_angle += diff;
         }
-        motor->measure.last_single_round_angle = single_round_angle_rad;
+        motor->measure.last_single_round_angle = single_motor_angle_rad;
 
-        /* 力矩: iq → 电流 → 电机端扭矩 (仅 MF/MG, MS 无意义) */
+        /* 电机轴累计角 = 整圈×2π + 当前单圈, 折算到输出轴。 */
+        motor->base.measure.total_angle = ((float)motor->measure.total_round * (2.0f * PI) + single_motor_angle_rad) / gear_ratio;
+
+        /* 单圈角度(输出轴 0~2π): 去掉输出轴累计角的整圈部分, 每输出轴一整圈回绕一次。 */
+        float output_single_rad = motor->base.measure.total_angle * (1.0f / (2.0f * PI));
+        output_single_rad = (output_single_rad - (float)(int32_t)output_single_rad) * (2.0f * PI);
+        if (output_single_rad < 0.0f)
+        {
+            output_single_rad += (2.0f * PI);
+        }
+        motor->base.measure.single_round_angle = output_single_rad;
+
+        /* 力矩: iq → 电流 → 输出轴扭矩 (仅 MF/MG, MS 无意义); torque_constant 为输出轴扭矩常数 */
         if (motor->base.info.motor_type == MG8016)
         {
             motor->base.measure.torque_nm = (int16_t)motor->measure.iq
@@ -173,8 +181,8 @@ static void Motor_LK_TorqueCtrl(LK_Motor_t *motor, int16_t iq)
 }
 /**
  * @brief 翎控电机阶段2: 输出应用 (每周期调用)
- * @note  数据流: output_torque(电机端 Nm) → ÷(Kt × gear_ratio × 电流分辨率) → iq → CAN 发送
- *         与 DJI 一致: PID 输出视为输出端扭矩, 发送时除减速比
+ * @note  轴端契约: output_torque / torque_constant / base.measure 均为输出轴端 (减速后)。
+ *         数据流: output_torque(输出轴 Nm) → ÷Kt(输出轴 Nm/A) → 电流(A) → 分辨率 → iq → CAN 发送
  */
 static void lk_apply(Motor_Base *base)
 {
@@ -197,14 +205,15 @@ static void lk_apply(Motor_Base *base)
     }
 
     /* 扭矩(Nm) → iqControl → 按模式发送
-     * 输出扭矩 ÷ gear_ratio ÷ Kt = 电机电流(A)
+     * 输出扭矩 ÷ Kt(输出轴 Nm/A) = 电机电流(A)
      * MG: ±2048 ↔ ±33A,  MF: ±2048 ↔ ±16.5A */
     int16_t iq = 0;
     switch (base->info.motor_type)
     {
     case MG8016:
     {
-        float motor_current = base->controller.output_torque / (base->info.torque_constant * base->info.gear_ratio);
+        /* output_torque 为输出轴端扭矩; torque_constant 为输出轴端扭矩常数 */
+        float motor_current = base->controller.output_torque / base->info.torque_constant;
         iq = (int16_t)(motor_current / LK_MG_TORQUE_CURRENT_RES);
         break;
     }

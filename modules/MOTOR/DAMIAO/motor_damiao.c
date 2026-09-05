@@ -13,7 +13,12 @@
 
 /* 达妙电机参数配置表 */
 static const DM_Motor_Params_t dm_motor_params[] = {
-    {-12.5f, 12.5f, -30.0f, 30.0f, 0.0f, 500.0f, 0.0f, 5.0f, -10.0f, 10.0f}, /* DM4310 */
+    {-12.5f, 12.5f, -30.0f, 30.0f, 0.0f, 500.0f, 0.0f, 5.0f, -10.0f, 10.0f},   /* DM4310,DM6220 */
+    {-12.5f, 12.5f, -10.0f, 10.0f, 0.0f, 500.0f, 0.0f, 5.0f, -28.0f, -28.0f},  /* DM4340 */
+    {-12.5f, 12.5f, -50.0f, 50.0f, 0.0f, 500.0f, 0.0f, 5.0f, -5.0f, -5.0f},    /* DM3507 */
+    {-12.5f, 12.5f, -45.0f, 45.0f, 0.0f, 500.0f, 0.0f, 5.0f, -54.0f, -54.0f},  /* DM8009 */
+    {-12.5f, 12.5f, -200.0f, 200.0f, 0.0f, 500.0f, 0.0f, 5.0f, -12.0f, -12.0f},/* DM3519 */
+
 };
 
 static const DM_Motor_Params_t *dm_get_params(Motor_Type_e type)
@@ -21,14 +26,25 @@ static const DM_Motor_Params_t *dm_get_params(Motor_Type_e type)
     switch (type)
     {
     case DM4310:
+    case DM6220:
         return &dm_motor_params[0];
+    case DM4340:
+        return &dm_motor_params[1];
+    case DM3507:
+        return &dm_motor_params[2];
+    case DM8009:
+        return &dm_motor_params[3];
+    case DM3519:
+        return &dm_motor_params[4];
     /* 后续在此添加其他型号映射 */
     default:
         return &dm_motor_params[0];
     }
 }
 
-/*  CAN 接收回调 */
+/*  CAN 接收回调
+ *  轴端契约: 达妙反馈(角度/速度/扭矩)即输出轴端, 带减速型号由电机固件折算,
+ *  本驱动不做 gear_ratio 缩放; 下发扭矩亦为输出轴端 Nm, 直接映射到 MIT 扭矩字段 */
 static void dm_can_rx_callback(Can_Device *dev, const uint8_t *data, uint8_t len)
 {
     if (len < 8 || !dev->user_arg) return;

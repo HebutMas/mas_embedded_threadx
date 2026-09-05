@@ -61,8 +61,9 @@ static void limit_group(PC_Node_t **nodes, uint8_t N, float max_power, float *cm
         float       k2 = nodes[i]->param.k2;
         float       k3 = nodes[i]->param.k3;
 
-        omega[i]  = m->measure.speed_rad / m->info.gear_ratio;
-        tau[i]    = m->controller.output_torque; /* 通用: 命令扭矩 (Nm) */
+        /* measure.speed_rad 已统一为输出轴角速度, 不再除 gear_ratio */
+        omega[i] = m->measure.speed_rad;
+        tau[i]   = m->controller.output_torque; /* 命令扭矩 (输出轴 Nm) */
 
         /* P = τ·Ω + k1·|Ω| + k2·τ² + k3 */
         cmdPow[i] = tau[i] * omega[i] + k1 * ABS(omega[i]) + k2 * tau[i] * tau[i] + k3;
