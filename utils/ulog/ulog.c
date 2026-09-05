@@ -122,10 +122,10 @@ static size_t ulog_tail_formater(char *log_buf, size_t log_len, bool newline, ui
 #ifdef ULOG_USING_COLOR
     reserve = (color_output_info[level] != NULL) ? strlen(CSI_END) : 0;
 #endif
-    size_t max_available = ULOG_LINE_BUF_SIZE - log_len - reserve - (newline ? strlen(ULOG_NEWLINE_SIGN) : 0);
-    if (max_available < 0)
+    size_t suffix_len = reserve + (newline ? strlen(ULOG_NEWLINE_SIGN) : 0);
+    if (log_len + suffix_len >= ULOG_LINE_BUF_SIZE)
     {
-        log_len = ULOG_LINE_BUF_SIZE - reserve - (newline ? strlen(ULOG_NEWLINE_SIGN) : 0) - 1;
+        log_len = ULOG_LINE_BUF_SIZE - suffix_len - 1;
     }
 
     // 换行

@@ -35,7 +35,7 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
  * @param Ins 姿态指针
  * @param receive_packet 接收到的视觉数据包指针
  */
-void gimbal_auto_func(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_Ctrl, Gimbal_Ctrl_Cmd_t *Gimbal_Ctrl,const Ins_t *Ins,
-                      ReceivePacket *receive_packet);
+void gimbal_auto_func(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_Ctrl, Gimbal_Ctrl_Cmd_t *Gimbal_Ctrl, const Ins_t *Ins,
+                      const ReceivePacket *receive_packet);
 
 #endif // _ROBOT_FUNC_H_
