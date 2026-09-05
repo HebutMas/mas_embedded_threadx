@@ -33,7 +33,7 @@ static void fifo_copy_in(struct kfifo *fifo, const void *src, unsigned int len, 
     memcpy(fifo->data, (const char *)src + l, len - l);
 }
 
-static void fifo_copy_out(struct kfifo *fifo, void *dst, unsigned int len, unsigned int off)
+static void fifo_copy_out(const struct kfifo *fifo, void *dst, unsigned int len, unsigned int off)
 {
     unsigned int size  = fifo->mask + 1;
     unsigned int esize = fifo->esize;

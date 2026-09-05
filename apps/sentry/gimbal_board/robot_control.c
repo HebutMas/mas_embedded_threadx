@@ -38,13 +38,12 @@ static ChassisToGimbal_referee_t chassis_upload_data;
  * chassis board must receive chassis-frame velocities, so do this rotation
  * once here while the yaw encoder sample is available.
  */
-static void project_velocity_to_chassis(float gimbal_vx, float gimbal_vy, uint16_t yaw_ecd, float *chassis_vx,
-                                        float *chassis_vy)
+static void project_velocity_to_chassis(float gimbal_vx, float gimbal_vy, uint16_t yaw_ecd_value, float *chassis_vx, float *chassis_vy)
 {
-    const float offset_angle = (float)CalcOffsetAngle(yaw_ecd) * 360.0f / 8191.0f;
-    const float theta         = offset_angle * DEGREE_2_RAD;
-    const float cos_theta     = cosf(theta);
-    const float sin_theta     = sinf(theta);
+    const float offset_angle = (float)CalcOffsetAngle(yaw_ecd_value) * 360.0f / 8191.0f;
+    const float theta        = offset_angle * DEGREE_2_RAD;
+    const float cos_theta    = cosf(theta);
+    const float sin_theta    = sinf(theta);
 
     *chassis_vx = gimbal_vx * cos_theta + gimbal_vy * sin_theta;
     *chassis_vy = -gimbal_vx * sin_theta + gimbal_vy * cos_theta;
@@ -67,7 +66,7 @@ static void robot_control_task(ULONG thread_input)
         Module_Vision_Send(&send_packet, TX_NO_WAIT);
         receive_packet = Module_Vision_Receive();
         /* 自动模式 */
-        gimbal_auto_func(&chassis_cmd,&shoot_cmd,&gimbal_cmd,ins,receive_packet);
+        gimbal_auto_func(&chassis_cmd, &shoot_cmd, &gimbal_cmd, ins, receive_packet);
         /* 云台控制 */
         gimbal_func(&gimbal_cmd, &yaw_ecd);
         /* 发射机构控制 */

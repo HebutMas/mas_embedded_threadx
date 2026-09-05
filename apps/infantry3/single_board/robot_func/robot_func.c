@@ -34,7 +34,7 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
         Chassis_Ctrl->vx = (float)Module_Remote_get_channel(1) / (float)(DT7_CH_VALUE_MAX - DT7_CH_VALUE_MIN);
         Chassis_Ctrl->vy = -(float)Module_Remote_get_channel(2) / (float)(DT7_CH_VALUE_MAX - DT7_CH_VALUE_MIN);
 
-        dt7_custom_t *dt7_custom = Module_Remote_get_dt7_custom();
+        const dt7_custom_t *dt7_custom = Module_Remote_get_dt7_custom();
         if (dt7_custom != NULL)
         {
             if (dt7_custom->sw2 == DT7_SW_UP)
@@ -90,6 +90,10 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
                 else if (dt7_custom->wheel < 0)
                 {
                     Shoot_Ctrl->load_mode = load_burstfire;
+                }
+                else
+                {
+                    Shoot_Ctrl->load_mode = load_stop;
                 }
             }
         }

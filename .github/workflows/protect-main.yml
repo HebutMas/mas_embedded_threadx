@@ -1,0 +1,26 @@
+name: Protect main
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  only-dev:
+    name: Only dev can merge into main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify source branch
+        env:
+          HEAD_BRANCH: ${{ github.head_ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if [[ "$HEAD_BRANCH" != "dev" || "$HEAD_REPOSITORY" != "$REPOSITORY" ]]; then
+            echo "::error title=Merge rejected::Only the repository's dev branch may merge into main."
+            echo "Source: $HEAD_REPOSITORY:$HEAD_BRANCH"
+            echo "Required: $REPOSITORY:dev"
+            exit 1
+          fi
+          echo "Only-dev policy passed: $HEAD_REPOSITORY:$HEAD_BRANCH -> $REPOSITORY:main"
