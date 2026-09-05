@@ -15,7 +15,7 @@ Motor_Base *friction_r = NULL;
 Motor_Base *loader     = NULL; // 拨盘电机
 
 /* 摩擦轮/拨弹目标 ref: 宏值已是"输出轴端" rad/s, 与基类 measure 同单位, 可直接作 Motor_SetRef 期望。*/
-#define FRICTION_WHEEL_REF 375
+#define FRICTION_WHEEL_REF 37.5
 #define LOADER_SINGLE_REF  11.7
 #define LOADER_BURST_REF   23.3
 
