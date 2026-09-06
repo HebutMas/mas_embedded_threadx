@@ -122,6 +122,13 @@ if(MODULE_BOARDCOMM)
     list(APPEND _module_includes ${CMAKE_CURRENT_SOURCE_DIR}/BOARDCOMM)
 endif()
 
+if(MODULE_LORA)
+    list(APPEND _module_sources
+        LORA/module_lora.c
+    )
+    list(APPEND _module_includes ${CMAKE_CURRENT_SOURCE_DIR}/LORA)
+endif()
+
 if(MODULE_VOFA)
     list(APPEND _module_sources
         VOFA/vofa.c
