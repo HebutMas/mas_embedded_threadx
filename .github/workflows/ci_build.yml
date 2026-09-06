@@ -6,43 +6,17 @@ on:
       - 'feat/**'
   pull_request:
     branches:
-      - main
       - dev
 
 jobs:
-  # ── 扫描 apps/ 目录，生成矩阵 JSON ──
-  matrix:
-    runs-on: ubuntu-latest
-    outputs:
-      configs: ${{ steps.scan.outputs.configs }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Scan apps directory
-        id: scan
-        run: |
-          # 找 apps/<robot>/<type>_board/ ，排除 templates
-          items=""
-          for d in apps/*/*_board; do
-            [ -d "$d" ] || continue
-            [[ "$d" == apps/templates/* ]] && continue
-            robot=$(echo "$d" | cut -d/ -f2)
-            board_type=$(basename "$d" | sed 's/_board$//')
-            items+="{\"robot\":\"$robot\",\"board_type\":\"$board_type\"},"
-          done
-          configs="[${items%,}]"
-          echo "configs=$configs"
-          echo "configs=$configs" >> $GITHUB_OUTPUT
-
-  # ── 编译 ──
   build:
-    needs: matrix
+    if: github.event_name == 'push'
     strategy:
       fail-fast: false
       matrix:
-        board: [damiao_h7, dji_c]
-        config: ${{ fromJson(needs.matrix.outputs.configs) }}
-        build_type: [Debug]
+        board:
+          - damiao_h7
+          - dji_c
     runs-on: ubuntu-latest
 
     steps:
@@ -53,28 +27,156 @@ jobs:
       - name: Install ARM GCC Toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-none-eabi ninja-build
+          sudo apt-get install -y gcc-arm-none-eabi ninja-build ccache
 
-      - name: Configure
+      - name: Build all application configurations
+        shell: bash
         run: |
-          sed -i 's/set(ROBOT ".*")/set(ROBOT "${{ matrix.config.robot }}")/' apps/config.cmake
-          sed -i 's/set(BOARD ".*")/set(BOARD "${{ matrix.config.board_type }}")/' apps/config.cmake
-          cmake -S board/${{ matrix.board }} -B build \
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -G Ninja \
-            -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/board/${{ matrix.board }}/cmake/gcc-arm-none-eabi.cmake
+          set -euo pipefail
 
-      - name: Build
-        run: cmake --build build -j $(nproc)
+          for robot_dir in apps/*; do
+            robot=$(basename "$robot_dir")
+            [[ -f "$robot_dir/robot.cmake" ]] || continue
+            [[ "$robot" == templates ]] && continue
 
-      - name: Show firmware size
-        run: arm-none-eabi-size build/base.elf
+            for app_board_dir in "$robot_dir"/*_board; do
+              [[ -d "$app_board_dir" ]] || continue
+              board_type=$(basename "$app_board_dir" _board)
+              build_dir="build/${{ matrix.board }}/${robot}/${board_type}"
 
+              echo "== ${{ matrix.board }}/$robot/$board_type =="
+              cmake -S "board/${{ matrix.board }}" -B "$build_dir" \
+                -G Ninja \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DROBOT="$robot" \
+                -DBOARD="$board_type" \
+                -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+                -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/board/${{ matrix.board }}/cmake/gcc-arm-none-eabi.cmake"
+              cmake --build "$build_dir" -j "$(nproc)"
+              arm-none-eabi-size "$build_dir/base.elf"
+            done
+          done
 
-      - name: Copy elf
-        run: cp build/base.elf ${{ matrix.board }}_${{ matrix.config.robot }}_${{ matrix.config.board_type }}_Debug.elf
-
-      - name: Upload firmware
+      - name: Upload build artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.board }}_${{ matrix.config.robot }}_${{ matrix.config.board_type }}
-          path: ${{ matrix.board }}_${{ matrix.config.robot }}_${{ matrix.config.board_type }}_Debug.elf
+          name: build-${{ matrix.board }}
+          path: build/${{ matrix.board }}
+          if-no-files-found: ignore
+
+  merge:
+    if: github.event_name == 'pull_request' && github.base_ref == 'dev'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install ARM GCC Toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi ninja-build ccache cppcheck
+
+      - name: Build and check all configurations
+        shell: bash
+        run: |
+          set -uo pipefail
+          command -v cppcheck
+
+          build_failures=()
+          cppcheck_failures=()
+          checked=0
+
+          for board in damiao_h7 dji_c; do
+            for robot_dir in apps/*; do
+              robot=$(basename "$robot_dir")
+              [[ -f "$robot_dir/robot.cmake" ]] || continue
+              [[ "$robot" == templates ]] && continue
+
+              for app_board_dir in "$robot_dir"/*_board; do
+                [[ -d "$app_board_dir" ]] || continue
+                board_type=$(basename "$app_board_dir" _board)
+                label="$board/$robot/$board_type"
+                build_dir="build/$board/$robot/$board_type"
+                log_dir="$build_dir/logs"
+                mkdir -p "$log_dir"
+
+                echo "== $label =="
+                if ! cmake -S "board/$board" -B "$build_dir" \
+                  -G Ninja \
+                  -DCMAKE_BUILD_TYPE=Debug \
+                  -DROBOT="$robot" \
+                  -DBOARD="$board_type" \
+                  -DMAS_REQUIRE_CPPCHECK=ON \
+                  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+                  -DCMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/board/$board/cmake/gcc-arm-none-eabi.cmake" \
+                  >"$log_dir/configure.log" 2>&1; then
+                  build_failures+=("$label (configure)")
+                  echo "::error title=Configure failed::$label"
+                  continue
+                fi
+
+                if ! cmake --build "$build_dir" -j "$(nproc)" \
+                  >"$log_dir/build.log" 2>&1; then
+                  build_failures+=("$label (build)")
+                  echo "::error title=Build failed::$label"
+                  continue
+                fi
+
+                checked=$((checked + 1))
+                if ! cmake --build "$build_dir" --target cppcheck-log \
+                  >"$log_dir/cppcheck-command.log" 2>&1; then
+                  cppcheck_failures+=("$label")
+                  echo "::error title=Cppcheck failed::$label"
+                  {
+                    echo
+                    echo "### Cppcheck failure: $label"
+                    echo '```text'
+                    cat "$build_dir/cppcheck/cppcheck.log" 2>/dev/null || cat "$log_dir/cppcheck-command.log"
+                    echo '```'
+                  } >> "$GITHUB_STEP_SUMMARY"
+                  cat "$build_dir/cppcheck/cppcheck.log" 2>/dev/null || true
+                fi
+              done
+            done
+          done
+
+          {
+            echo '## Merge Cppcheck report'
+            echo "- Compiled configurations checked: $checked"
+            echo "- Build failures (Cppcheck skipped): ${#build_failures[@]}"
+            echo "- Cppcheck failures: ${#cppcheck_failures[@]}"
+            if ((${#build_failures[@]})); then
+              echo
+              echo '### Build failures'
+              printf '%s\n' "${build_failures[@]}"
+            fi
+            if ((${#cppcheck_failures[@]})); then
+              echo
+              echo '### Cppcheck failures'
+              printf '%s\n' "${cppcheck_failures[@]}"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if ((checked == 0)); then
+            echo 'No configuration compiled successfully; merge is rejected.'
+            exit 1
+          fi
+          if ((${#cppcheck_failures[@]})); then
+            echo 'Cppcheck failed; merge is rejected.'
+            exit 1
+          fi
+
+          echo 'Cppcheck passed for every configuration that compiled.'
+
+      - name: Upload merge logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: merge-check-logs
+          path: |
+            build/**/cppcheck/cppcheck.log
+            build/**/logs
+          if-no-files-found: ignore

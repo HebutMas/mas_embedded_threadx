@@ -135,6 +135,32 @@ cmake --build build/dji_c/Debug --config Debug -j $(nproc)
 
 > IDE 内置任务一键编译完成后会自动将 `compile_commands.json` 复制到 `build/`，并将 `.elf` 复制到 `build/<board>.elf`，供 `clangd` 和调试器使用。
 
+### ccache 加速编译
+
+如果系统已安装 `ccache`，CMake 会自动使用它缓存 C/C++ 编译结果；不需要额外配置。检查是否生效：
+
+```bash
+ccache --show-stats
+```
+
+### Cppcheck 静态检查
+
+`建议在提交前手动检查一下，查看是否有空指针等问题`
+
+Cppcheck 在 CI 的 push 和合并到 `dev` 分支时自动执行，只检查以下目录：
+
+```text
+board/bsp/  modules/  apps/  utils/
+```
+手动检查一个已经编译过的构建目录：
+```bash
+# 以c板为例，喵板只需要把dji_c换成damiao_h7即可
+cmake --build build/dji_c/Debug --target cppcheck-log
+cat build/dji_c/Debug/cppcheck/cppcheck.log
+```
+如果还没有编译目录，先执行编译：
+日志为空表示检查通过；Cppcheck 返回非零状态表示检查失败。
+
 ### 烧录
 
 项目提供一键烧录脚本，支持交互式选择：
