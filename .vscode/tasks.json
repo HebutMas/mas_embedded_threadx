@@ -7,7 +7,8 @@
             "description": "选择开发板",
             "options": [
                 "damiao_h7",
-                "dji_c"
+                "dji_c",
+                "f103_c8"
             ],
             "default": "dji_c"
         },
@@ -75,14 +76,72 @@
                 "command": "powershell",
                 "args": [
                     "-Command",
-                    "cmake -S ${workspaceFolder}/board/dji_c -B ${workspaceFolder}/build/dji_c/Debug --preset Debug -G Ninja -DCMAKE_C_COMPILER_LAUNCHER=ccache; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build ${workspaceFolder}/build/dji_c/Debug --config Debug -j ${env:NUMBER_OF_PROCESSORS}; Copy-Item -Path ${workspaceFolder}/build/dji_c/Debug/compile_commands.json -Destination ${workspaceFolder}/build/compile_commands.json -Force; Copy-Item -Path ${workspaceFolder}/build/dji_c/Debug/base.elf -Destination ${workspaceFolder}/build/dji_c.elf -Force"
+                    "cmake -S ${workspaceFolder}/board/dji_c -B ${workspaceFolder}/build/dji_c/Debug --preset Debug -G Ninja -DROBOT=test -DBOARD=single -DCMAKE_C_COMPILER_LAUNCHER=ccache; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build ${workspaceFolder}/build/dji_c/Debug --config Debug -j ${env:NUMBER_OF_PROCESSORS}; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; Copy-Item -Path ${workspaceFolder}/build/dji_c/Debug/compile_commands.json -Destination ${workspaceFolder}/build/compile_commands.json -Force; Copy-Item -Path ${workspaceFolder}/build/dji_c/Debug/base.elf -Destination ${workspaceFolder}/build/dji_c.elf -Force"
                 ]
             },
             "linux": {
                 "command": "bash",
                 "args": [
                     "-lc",
-                    "cmake -S ${workspaceFolder}/board/dji_c -B ${workspaceFolder}/build/dji_c/Debug --preset Debug -G Ninja -DCMAKE_C_COMPILER_LAUNCHER=ccache && cmake --build ${workspaceFolder}/build/dji_c/Debug --config Debug -j $(nproc) && cp ${workspaceFolder}/build/dji_c/Debug/compile_commands.json ${workspaceFolder}/build/compile_commands.json && cp ${workspaceFolder}/build/dji_c/Debug/base.elf ${workspaceFolder}/build/dji_c.elf"
+                    "cmake -S ${workspaceFolder}/board/dji_c -B ${workspaceFolder}/build/dji_c/Debug --preset Debug -G Ninja -DROBOT=test -DBOARD=single -DCMAKE_C_COMPILER_LAUNCHER=ccache && cmake --build ${workspaceFolder}/build/dji_c/Debug --config Debug -j $(nproc) && cp ${workspaceFolder}/build/dji_c/Debug/compile_commands.json ${workspaceFolder}/build/compile_commands.json && cp ${workspaceFolder}/build/dji_c/Debug/base.elf ${workspaceFolder}/build/dji_c.elf"
+                ]
+            }
+        },
+        {
+            "label": "Build f103_c8",
+            "type": "shell",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": false,
+                "echo": true,
+                "showReuseMessage": false
+            },
+            "windows": {
+                "command": "powershell",
+                "args": [
+                    "-Command",
+                    "cmake -S ${workspaceFolder}/board/f103_c8 -B ${workspaceFolder}/build/f103_c8/Debug --preset Debug -G Ninja -DROBOT=test -DBOARD=single; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build ${workspaceFolder}/build/f103_c8/Debug --config Debug -j ${env:NUMBER_OF_PROCESSORS}; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; Copy-Item -Path ${workspaceFolder}/build/f103_c8/Debug/compile_commands.json -Destination ${workspaceFolder}/build/compile_commands.json -Force; Copy-Item -Path ${workspaceFolder}/build/f103_c8/Debug/base.elf -Destination ${workspaceFolder}/build/f103_c8.elf -Force"
+                ]
+            },
+            "linux": {
+                "command": "bash",
+                "args": [
+                    "-lc",
+                    "cmake -S ${workspaceFolder}/board/f103_c8 -B ${workspaceFolder}/build/f103_c8/Debug --preset Debug -G Ninja -DROBOT=test -DBOARD=single && cmake --build ${workspaceFolder}/build/f103_c8/Debug --config Debug -j $(nproc) && cp ${workspaceFolder}/build/f103_c8/Debug/compile_commands.json ${workspaceFolder}/build/compile_commands.json && cp ${workspaceFolder}/build/f103_c8/Debug/base.elf ${workspaceFolder}/build/f103_c8.elf"
+                ]
+            }
+        },
+        {
+            "label": "Build 105_rc",
+            "type": "shell",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": false,
+                "echo": true,
+                "showReuseMessage": false
+            },
+            "windows": {
+                "command": "powershell",
+                "args": [
+                    "-Command",
+                    "cmake -S ${workspaceFolder}/board/105_rc -B ${workspaceFolder}/build/105_rc/Debug --preset Debug -G Ninja -DROBOT=infantry3 -DBOARD=single; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build ${workspaceFolder}/build/105_rc/Debug --config Debug -j ${env:NUMBER_OF_PROCESSORS}; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; Copy-Item -Path ${workspaceFolder}/build/105_rc/Debug/compile_commands.json -Destination ${workspaceFolder}/build/compile_commands.json -Force; Copy-Item -Path ${workspaceFolder}/build/105_rc/Debug/base.elf -Destination ${workspaceFolder}/build/105_rc.elf -Force"
+                ]
+            },
+            "linux": {
+                "command": "bash",
+                "args": [
+                    "-lc",
+                    "cmake -S ${workspaceFolder}/board/105_rc -B ${workspaceFolder}/build/105_rc/Debug --preset Debug -G Ninja -DROBOT=infantry3 -DBOARD=single && cmake --build ${workspaceFolder}/build/105_rc/Debug --config Debug -j $(nproc) && cp ${workspaceFolder}/build/105_rc/Debug/compile_commands.json ${workspaceFolder}/build/compile_commands.json && cp ${workspaceFolder}/build/105_rc/Debug/base.elf ${workspaceFolder}/build/105_rc.elf"
                 ]
             }
         },
