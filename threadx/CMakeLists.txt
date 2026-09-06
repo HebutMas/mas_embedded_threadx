@@ -316,7 +316,8 @@ target_compile_definitions(${PROJECT_NAME}
     PUBLIC
         TX_INCLUDE_USER_DEFINE_FILE
         TX_ENABLE_FPU_SUPPORT
-        ENABLE_TRACE_API
+        ENABLE_TRACE_TASK
+        ENABLE_TRACE_ISR
 )
 
 # ---------------------------------------------------------------------------

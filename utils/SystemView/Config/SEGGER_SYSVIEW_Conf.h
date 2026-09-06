@@ -78,10 +78,15 @@ Additional information:
  *    Section to place the SystemView RTT Buffer into.
  *    MUST be non-cacheable SRAM for J-Link SWD coherence:
  *    - DTCM:     safe (default .bss) but precious, 0-wait
- *    - RAM_D2:   safe, AHB bus, uncached, 32KB available
+ *    - RAM_D2:   safe on STM32H7, AHB bus, uncached, 32KB available
+ *    - .bss:     use for targets without a linker-defined RAM_D2 section
  *    - RAM_D1:   DANGER – cached via L1 D$, J-Link sees stale data
  */
+#if defined(STM32H723xx)
 #define SEGGER_SYSVIEW_SECTION ".RAM_D2"
+#else
+#define SEGGER_SYSVIEW_SECTION ".bss"
+#endif
 
 /*********************************************************************
  * TODO: Add your defines here.                                       *
@@ -109,38 +114,9 @@ Additional information:
  *
  *       Event filter mask
  *
- *  Notes
- *    Bitmask of events to DISABLE at init.  Comment out individual
- *    lines to re-enable specific events.  See SEGGER_SYSVIEW.h for
- *    the full SYSVIEW_EVTMASK_* list.
- *
- *    Disabled by default:
- *      TASK_START_READY  – very high frequency, threads becoming ready
- *      TASK_STOP_READY   – not emitted by this ThreadX integration
- *      TASK_CREATE       – one-shot, enable if debugging thread creation
- *      TASK_INFO         – one-shot, sent via task list on init anyway
- *      STACK_INFO        – one-shot, enable for stack usage analysis
- *      SYSTIME_CYCLES    – periodic, enable only if needed
- *      SYSTIME_US        – periodic, enable only if needed
- *      DATA_SAMPLE       – application-defined periodic samples
- *      PRINT_FORMATTED   – printf-style events from SEGGER_SYSVIEW_Printf*
- *
- *    Kept enabled:
- *      TASK_START_EXEC / TASK_STOP_EXEC  – context switches
- *      ISR_ENTER / ISR_EXIT              – interrupt tracing
- *      IDLE                               – idle detection
- *      TIMER_ENTER / TIMER_EXIT           – timer callbacks
+ *  No SEGGER_SYSVIEW_DISABLE_EVENT_MASK is defined here, so all
+ *  SystemView event categories remain enabled.
  */
-#ifndef SEGGER_SYSVIEW_DISABLE_EVENT_MASK
-#define SEGGER_SYSVIEW_DISABLE_EVENT_MASK                                                                                                            \
-    (SYSVIEW_EVTMASK_TASK_START_READY | /* threads becoming ready  – very high freq */                                                               \
-     SYSVIEW_EVTMASK_TASK_STOP_READY |  /* not emitted by this port */                                                                               \
-     SYSVIEW_EVTMASK_SYSTIME_CYCLES |   /* periodic system time in cycles */                                                                         \
-     SYSVIEW_EVTMASK_SYSTIME_US |       /* periodic system time in us */                                                                             \
-     SYSVIEW_EVTMASK_DATA_SAMPLE |      /* application data samples */                                                                               \
-     SYSVIEW_EVTMASK_PRINT_FORMATTED    /* printf-style events */                                                                                    \
-    )
-#endif
 /* RAM base where ThreadX objects (TCBs, semaphores, etc.) live.
  * On STM32H7, .data/.bss default to DTCMRAM (0x20000000).
  * Must match the lowest RAM addr used by traced objects so

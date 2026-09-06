@@ -32,7 +32,7 @@
     .global tx_low_power_enter
     .global tx_low_power_exit
 #endif
-#if (defined(ENABLE_TRACE_API))
+#if (defined(ENABLE_TRACE_TASK))
     .global trace_task_exec
     .global trace_task_stop
 #endif
@@ -140,7 +140,7 @@ __tx_PendSVHandler:
 
 __tx_ts_handler:
 
-#if (defined(ENABLE_TRACE_API))
+#if (defined(ENABLE_TRACE_TASK))
     /* Call trace_task_stop to record the task switch. */
     CPSID   i                                       // Disable interrupts
     PUSH    {r0, lr}                                // Save LR (and r0 just for alignment)
@@ -242,7 +242,7 @@ __tx_ts_restore:
 
     STR     r5, [r4]                                // Setup global time-slice
 
-#if (defined(ENABLE_TRACE_API))
+#if (defined(ENABLE_TRACE_TASK))
     /* Call trace_task_exec to record the task switch. */
     PUSH    {r0, r1}                                // Save r0 and r1
     BL      trace_task_exec

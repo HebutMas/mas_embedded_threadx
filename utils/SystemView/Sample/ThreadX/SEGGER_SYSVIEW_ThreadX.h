@@ -201,6 +201,7 @@ Notes:
 #define TRACE_API_TXE_TIMER_DELETE                           (173u)
 #define TRACE_API_TXE_TIMER_INFO_GET                         (174u)
 
+#ifdef ENABLE_TRACE_API
 #define TRACE_RECORD_VOID(a)                                 SEGGER_SYSVIEW_RecordVoid(a)
 #define TRACE_RECORD_U32(a, b)                               SEGGER_SYSVIEW_RecordU32(a, b)
 #define TRACE_RECORD_U32x2(a, b, c)                          SEGGER_SYSVIEW_RecordU32x2(a, b, c)
@@ -217,6 +218,24 @@ Notes:
 #define TRACE_RECORD_END_CALL(a)                             SEGGER_SYSVIEW_RecordEndCall(a)
 #define TRACE_RECORD_END_CALL_U32(a, b)                      SEGGER_SYSVIEW_RecordEndCallU32(a, b)
 #define TRACE_NAME_RESOURCE(a, b)                            SEGGER_SYSVIEW_NameResource(a, b);
+#else
+#define TRACE_RECORD_VOID(a)
+#define TRACE_RECORD_U32(a, b)
+#define TRACE_RECORD_U32x2(a, b, c)
+#define TRACE_RECORD_U32x3(a, b, c, d)
+#define TRACE_RECORD_U32x4(a, b, c, d, e)
+#define TRACE_RECORD_U32x5(a, b, c, d, e, f)
+#define TRACE_RECORD_U32x6(a, b, c, d, e, f, g)
+#define TRACE_RECORD_U32x7(a, b, c, d, e, f, g, h)
+#define TRACE_RECORD_U32x8(a, b, c, d, e, f, g, h, i)
+#define TRACE_RECORD_U32x9(a, b, c, d, e, f, g, h, i, j)
+#define TRACE_RECORD_U32x10(a, b, c, d, e, f, g, h, i, j, k)
+#define TRACE_RECORD_ENTER_TIMER(a)
+#define TRACE_RECORD_EXIT_TIMER()
+#define TRACE_RECORD_END_CALL(a)
+#define TRACE_RECORD_END_CALL_U32(a, b)
+#define TRACE_NAME_RESOURCE(a, b)
+#endif
 
 #define TRACE_ON_TASK_START_READY(a)                         SEGGER_SYSVIEW_OnTaskStartReady(TX_POINTER_TO_ULONG_CONVERT(a));
 
