@@ -1,4 +1,4 @@
-﻿# 模块默认配置模板
+# 模块默认配置模板
 # 各 apps/<robot>/robot.cmake 应先 include 本文件，再覆盖差异项。
 # 覆盖方式：直接 set(变量名 新值) 即可，无需前缀。
 
@@ -67,6 +67,9 @@ set(VISION_OFFLINE_ENABLE    1)      # 离线检测开启
 
 # VOFA 默认参数
 # 注: VOFA 默认不在 MODULES_* 列表中(默认不启用)。如需启用, 在对应 MODULES_XXX 中加入 VOFA
-set(VOFA_UART              huart6)   # 串口选择 (RM2025 原用 huart6)
-set(VOFA_TASK_STACK_SIZE   1024)     # 任务栈大小
-set(VOFA_TASK_PRIORITY     11)       # 任务优先级
+set(VOFA_UART              huart6)       # 串口句柄
+set(VOFA_FORMAT            0)            # 协议格式: 0=JustFloat, 1=FireWater
+set(VOFA_FIREWATER_PREFIX  "vofa:")      # FireWater 前缀
+set(VOFA_TX_INTERVAL_MS    10)           # TX 发送周期 (ms)
+set(VOFA_TASK_STACK_SIZE   1024)         # 任务栈大小
+set(VOFA_TASK_PRIORITY     11)           # 任务优先级
