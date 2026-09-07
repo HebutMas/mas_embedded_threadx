@@ -49,7 +49,7 @@ static void offline_detect_task_entry(ULONG arg)
 #if OFFLINE_WATCHDOG_ENABLE
 #if defined(STM32H723xx)
         HAL_IWDG_Refresh(&hiwdg1);
-#elif defined(STM32F407xx) || defined(STM32F105xC) || defined(STM32F103xB)
+#elif defined(STM32F407xx)
         HAL_IWDG_Refresh(&hiwdg);
 #endif
 #endif
