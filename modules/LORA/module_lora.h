@@ -1,12 +1,4 @@
 /*
- * @Author: shentianao 2755930351@qq.com
- * @Date: 2026-09-04 19:04:15
- * @LastEditors: shentianao 2755930351@qq.com
- * @LastEditTime: 2026-09-06 21:08:56
- * @FilePath: \fork\modules\LORA\module_lora.h
- * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
- */
-/*
  * @brief 塔石 L33 LoRa 透传模块(框架版)
  *        两板点对点透传,应用层帧:0xAA 0x55 + LEN + SEQ + 数据 + CRC8
  *        参数已在塔石上位机配好(115200 / 19200 / 透传 / 信道23),本模块只做收发。
@@ -36,6 +28,6 @@ typedef enum
 int Lora_Register(const char *name, void *value, Lora_Data_Type type);
 
 void Module_Lora_Init(void);
-int Lora_Start(void);
+int  Lora_Start(void);
 
 #endif /* _MODULE_LORA_H_ */
