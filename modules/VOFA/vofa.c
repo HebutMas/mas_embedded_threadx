@@ -10,7 +10,7 @@
  *              默认不启用: 需在 module_config.cmake 的 MODULES_* 中加入 VOFA
  *              才会参与编译与初始化 (见 modules/module_init.c #if MODULE_VOFA)
  *
- *              配置宏见 vofa.h 顶部 (VOFA_UART / VOFA_FORMAT / VOFA_TX_INTERVAL_MS ...)
+ *              配置参数由 module_config.h 注入(见 module_config.cmake / robot.cmake)
  */
 #include "vofa.h"
 #include "bsp_def.h"
@@ -32,20 +32,20 @@ static const uint8_t VOFA_TAIL_JUSTFLOAT[] = {0x00, 0x00, 0x80, 0x7f};
 /* 发送帧节点 */
 typedef struct VOFA_TxNode
 {
-    struct VOFA_TxNode *next;                 // 链表下一节点
+    struct VOFA_TxNode *next;                              // 链表下一节点
     uint8_t             string_data[VOFA_STRING_DATA_LEN]; // 参数名
-    uint8_t             string_len;           // 参数名长度
-    float              *float_data;           // 浮点数指针
+    uint8_t             string_len;                        // 参数名长度
+    float              *float_data;                        // 浮点数指针
 } VOFA_TxNode;
 
 /* 接收帧节点 */
 typedef struct VOFA_RxNode
 {
-    struct VOFA_RxNode *next;                 // 链表下一节点
+    struct VOFA_RxNode *next;                              // 链表下一节点
     uint8_t             string_data[VOFA_STRING_DATA_LEN]; // 参数名
-    uint8_t             string_len;           // 参数名长度
-    float              *float_data;           // 浮点数指针
-    VOFA_RxCallback     callback;             // 回调
+    uint8_t             string_len;                        // 参数名长度
+    float              *float_data;                        // 浮点数指针
+    VOFA_RxCallback     callback;                          // 回调
 } VOFA_RxNode;
 
 /* ========== 全局状态 ========== */
@@ -60,10 +60,10 @@ static VOFA_TxNode *g_tx_head = NULL;
 static VOFA_RxNode *g_rx_head = NULL;
 
 /* ========== 模块任务状态 ========== */
-static volatile bool     g_initialized = false;
-static TX_THREAD         g_vofa_rx_task;
+static volatile bool              g_initialized = false;
+static TX_THREAD                  g_vofa_rx_task;
 APPS_STACK_SECTION static uint8_t g_vofa_rx_stack[VOFA_TASK_STACK_SIZE];
-static TX_THREAD         g_vofa_tx_task;
+static TX_THREAD                  g_vofa_tx_task;
 APPS_STACK_SECTION static uint8_t g_vofa_tx_stack[VOFA_TASK_STACK_SIZE];
 
 /* UART6 接收缓冲 (双缓冲, 见 bsp_uart 说明) */
@@ -121,8 +121,8 @@ static vofa_err_t VOFA_SendJustFloat(void)
 {
     if (!g_uart_dev || g_tx_head == NULL) return VOFA_ERR;
 
-    float    *pf          = (float *)g_tx_buffer;
-    uint16_t  float_count = 0;
+    float   *pf          = (float *)g_tx_buffer;
+    uint16_t float_count = 0;
 
     /* 遍历发送链表, 提取所有浮点数据 */
     for (VOFA_TxNode *node = g_tx_head; node != NULL && float_count < (VOFA_JUSTFLOAT_MAX_LEN / 4); node = node->next)
@@ -194,8 +194,7 @@ static vofa_err_t VOFA_SendFireWater(void)
     if (data_count == 0 && (offset + 10) < sizeof(g_tx_buffer))
     {
         int ret = snprintf((char *)&g_tx_buffer[offset], sizeof(g_tx_buffer) - offset, "0.0,");
-        if (ret > 0 && (size_t)ret < (sizeof(g_tx_buffer) - offset))
-            offset += (size_t)ret;
+        if (ret > 0 && (size_t)ret < (sizeof(g_tx_buffer) - offset)) offset += (size_t)ret;
     }
 
     /* 移除最后的逗号, 添加换行符 */
@@ -371,7 +370,7 @@ void Module_VOFA_Init(void)
         .huart           = &VOFA_UART,
         .rx_buf          = &g_vofa_rx_buf[0][0],
         .rx_buf_size     = sizeof(g_vofa_rx_buf),
-        .expected_rx_len = 0,          /* 不定长: 接收任何可用数据 */
+        .expected_rx_len = 0, /* 不定长: 接收任何可用数据 */
         .rx_mode         = UART_MODE_DMA,
         .tx_mode         = UART_MODE_BLOCKING,
     };
@@ -391,10 +390,8 @@ void Module_VOFA_Init(void)
     }
 
     /* 3. 创建接收线程 (模块自建任务) */
-    UINT status = tx_thread_create(&g_vofa_rx_task, "VOFA Rx", vofa_rx_task_entry, 0,
-                                   g_vofa_rx_stack, VOFA_TASK_STACK_SIZE,
-                                   VOFA_TASK_PRIORITY, VOFA_TASK_PRIORITY,
-                                   TX_NO_TIME_SLICE, TX_AUTO_START);
+    UINT status = tx_thread_create(&g_vofa_rx_task, "VOFA Rx", vofa_rx_task_entry, 0, g_vofa_rx_stack, VOFA_TASK_STACK_SIZE, VOFA_TASK_PRIORITY,
+                                   VOFA_TASK_PRIORITY, TX_NO_TIME_SLICE, TX_AUTO_START);
     if (status != TX_SUCCESS)
     {
         LOG_E("VOFA rx task create failed (0x%02x)", status);
@@ -402,10 +399,8 @@ void Module_VOFA_Init(void)
     }
 
     /* 4. 创建发送线程 (模块自建任务, 周期上报) */
-    status = tx_thread_create(&g_vofa_tx_task, "VOFA Tx", vofa_tx_task_entry, 0,
-                              g_vofa_tx_stack, VOFA_TASK_STACK_SIZE,
-                              VOFA_TASK_PRIORITY, VOFA_TASK_PRIORITY,
-                              TX_NO_TIME_SLICE, TX_AUTO_START);
+    status = tx_thread_create(&g_vofa_tx_task, "VOFA Tx", vofa_tx_task_entry, 0, g_vofa_tx_stack, VOFA_TASK_STACK_SIZE, VOFA_TASK_PRIORITY,
+                              VOFA_TASK_PRIORITY, TX_NO_TIME_SLICE, TX_AUTO_START);
     if (status != TX_SUCCESS)
     {
         LOG_E("VOFA tx task create failed (0x%02x)", status);
