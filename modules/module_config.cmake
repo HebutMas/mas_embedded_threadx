@@ -2,7 +2,7 @@
 # 各 apps/<robot>/robot.cmake 应先 include 本文件，再覆盖差异项。
 # 覆盖方式：直接 set(变量名 新值) 即可，无需前缀。
 
-# 可用模块列表 OFFLINE REMOTE BMI088 INS REFEREE SUPERCAP WT606 MOTOR BOARDCOMM VISION VOFA
+# 可用模块列表 OFFLINE REMOTE BMI088 INS REFEREE SUPERCAP WT606 MOTOR BOARDCOMM VISION LORA VOFA
 
 # 默认模块列表
 set(MODULES_SINGLE   OFFLINE REMOTE BMI088 INS REFEREE SUPERCAP MOTOR)
@@ -64,6 +64,22 @@ set(BOARDCOMM_OFFLINE_ENABLE 1)     # 离线检测开启
 set(VISION_TASK_STACK_SIZE   1024)   # 任务栈大小
 set(VISION_TASK_PRIORITY     10)     # 任务优先级
 set(VISION_OFFLINE_ENABLE    1)      # 离线检测开启
+
+# LORA 默认参数(塔石 L33 LoRa 透传; 默认不启用)
+# 注: LORA 默认不在 MODULES_* 列表中(默认不启用)。启用兵种需在自己的 robot.cmake:
+#     1) 将 LORA 加入对应 MODULES_XXX
+#     2) 配置板级 UART/GPIO: LORA_UART / LORA_M0/M1/AUX_GPIO_PORT(_PIN)
+# 例(F103C8: USART2=PA2/PA3, M0=PA4, M1=PA5, AUX=PA6):
+#   set(LORA_UART huart2)
+#   set(LORA_M0_GPIO_PORT GPIOA)  set(LORA_M0_GPIO_PIN GPIO_PIN_4)
+#   set(LORA_M1_GPIO_PORT GPIOA)  set(LORA_M1_GPIO_PIN GPIO_PIN_5)
+#   set(LORA_AUX_GPIO_PORT GPIOA) set(LORA_AUX_GPIO_PIN GPIO_PIN_6)
+set(LORA_TASK_STACK_SIZE     1024)   # 任务栈大小
+set(LORA_TASK_PRIORITY       11)     # 任务优先级
+set(LORA_OFFLINE_ENABLE      1)      # 离线检测开启(收到合法帧喂心跳)
+set(LORA_AUX_ENABLE          1)      # 是否接 AUX(0=不接,发前不做忙检测)
+set(LORA_TX_INTERVAL_MS      50)     # 发送周期，默认 20Hz
+set(LORA_TX_ENABLE           1)      # 是否发送，接收端可覆盖为 0
 
 # VOFA 默认参数
 # 注: VOFA 默认不在 MODULES_* 列表中(默认不启用)。如需启用, 在对应 MODULES_XXX 中加入 VOFA
