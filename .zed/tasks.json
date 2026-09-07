@@ -1,38 +1,38 @@
 [
   {
     "label": "Build damiao_h7(windows)",
-    "command": "powershell -Command \"cmake -S ${ZED_WORKTREE_ROOT}/board/damiao_h7 -B ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug --preset Debug -G Ninja; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug --config Debug -j $env:NUMBER_OF_PROCESSORS; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; Copy-Item -Path ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug/compile_commands.json -Destination ${ZED_WORKTREE_ROOT}/build/compile_commands.json -Force; Copy-Item -Path ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug/base.elf -Destination ${ZED_WORKTREE_ROOT}/build/damiao_h7.elf -Force\"",
-    "shell": "system",
+    "command": "powershell -Command \"cmake -S ${ZED_WORKTREE_ROOT}/board/damiao_h7 -B ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug --preset Debug -G Ninja -DCMAKE_C_COMPILER_LAUNCHER=ccache; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug --config Debug -j $env:NUMBER_OF_PROCESSORS; Copy-Item -Path ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug/compile_commands.json -Destination ${ZED_WORKTREE_ROOT}/build/compile_commands.json -Force; Copy-Item -Path ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug/base.elf -Destination ${ZED_WORKTREE_ROOT}/build/damiao_h7.elf -Force\"",
+    "shell": "system"
   },
   {
     "label": "Build dji_c(windows)",
-    "command": "powershell -Command \"cmake -S ${ZED_WORKTREE_ROOT}/board/dji_c -B ${ZED_WORKTREE_ROOT}/build/dji_c/Debug --preset Debug -G Ninja; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build ${ZED_WORKTREE_ROOT}/build/dji_c/Debug --config Debug -j $env:NUMBER_OF_PROCESSORS; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; Copy-Item -Path ${ZED_WORKTREE_ROOT}/build/dji_c/Debug/compile_commands.json -Destination ${ZED_WORKTREE_ROOT}/build/compile_commands.json -Force; Copy-Item -Path ${ZED_WORKTREE_ROOT}/build/dji_c/Debug/base.elf -Destination ${ZED_WORKTREE_ROOT}/build/dji_c.elf -Force\"",
-    "shell": "system",
+    "command": "powershell -Command \"cmake -S ${ZED_WORKTREE_ROOT}/board/dji_c -B ${ZED_WORKTREE_ROOT}/build/dji_c/Debug --preset Debug -G Ninja -DCMAKE_C_COMPILER_LAUNCHER=ccache; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build ${ZED_WORKTREE_ROOT}/build/dji_c/Debug --config Debug -j $env:NUMBER_OF_PROCESSORS; Copy-Item -Path ${ZED_WORKTREE_ROOT}/build/dji_c/Debug/compile_commands.json -Destination ${ZED_WORKTREE_ROOT}/build/compile_commands.json -Force; Copy-Item -Path ${ZED_WORKTREE_ROOT}/build/dji_c/Debug/base.elf -Destination ${ZED_WORKTREE_ROOT}/build/dji_c.elf -Force\"",
+    "shell": "system"
   },
   {
     "label": "Flash board(windows)",
     "command": ".zed/flash_select.bat",
-    "shell": "system",
+    "shell": "system"
   },
   {
     "label": "Build dji_c(linux)",
-    "command": "bash -lc \"cmake -S ${ZED_WORKTREE_ROOT}/board/dji_c -B ${ZED_WORKTREE_ROOT}/build/dji_c/Debug --preset Debug -G Ninja && cmake --build ${ZED_WORKTREE_ROOT}/build/dji_c/Debug --config Debug -j $(nproc) && cp ${ZED_WORKTREE_ROOT}/build/dji_c/Debug/compile_commands.json ${ZED_WORKTREE_ROOT}/build/compile_commands.json && cp ${ZED_WORKTREE_ROOT}/build/dji_c/Debug/base.elf ${ZED_WORKTREE_ROOT}/build/dji_c.elf\"",
+    "command": "bash -lc \"cmake -S ${ZED_WORKTREE_ROOT}/board/dji_c -B ${ZED_WORKTREE_ROOT}/build/dji_c/Debug --preset Debug -G Ninja -DCMAKE_C_COMPILER_LAUNCHER=ccache && cmake --build ${ZED_WORKTREE_ROOT}/build/dji_c/Debug --config Debug -j $(nproc) && cp ${ZED_WORKTREE_ROOT}/build/dji_c/Debug/compile_commands.json ${ZED_WORKTREE_ROOT}/build/compile_commands.json && cp ${ZED_WORKTREE_ROOT}/build/dji_c/Debug/base.elf ${ZED_WORKTREE_ROOT}/build/dji_c.elf\"",
     "shell": {
-      "program": "/bin/bash",
-    },
+      "program": "/bin/bash"
+    }
   },
   {
     "label": "Build damiao_h7(linux)",
-    "command": "bash -lc \"cmake -S ${ZED_WORKTREE_ROOT}/board/damiao_h7 -B ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug --preset Debug -G Ninja && cmake --build ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug --config Debug -j $(nproc) && cp ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug/compile_commands.json ${ZED_WORKTREE_ROOT}/build/compile_commands.json && cp ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug/base.elf ${ZED_WORKTREE_ROOT}/build/damiao_h7.elf\"",
+    "command": "bash -lc \"cmake -S ${ZED_WORKTREE_ROOT}/board/damiao_h7 -B ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug --preset Debug -G Ninja -DCMAKE_C_COMPILER_LAUNCHER=ccache && cmake --build ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug --config Debug -j $(nproc) && cp ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug/compile_commands.json ${ZED_WORKTREE_ROOT}/build/compile_commands.json && cp ${ZED_WORKTREE_ROOT}/build/damiao_h7/Debug/base.elf ${ZED_WORKTREE_ROOT}/build/damiao_h7.elf\"",
     "shell": {
-      "program": "/bin/bash",
-    },
+      "program": "/bin/bash"
+    }
   },
   {
     "label": "Flash board(linux)",
     "command": ".zed/flash_select.sh",
     "shell": {
-      "program": "/bin/bash",
-    },
-  },
+      "program": "/bin/bash"
+    }
+  }
 ]

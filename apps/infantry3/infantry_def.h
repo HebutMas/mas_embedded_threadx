@@ -6,9 +6,9 @@
 // clang-format off
 // 云台参数
 #define PITCH_HORIZON_ANGLE 0.0f            // 云台处于水平位置时编码器值,若对云台有机械改动需要修改
-#define PITCH_MAX_ANGLE     40.0f           // 云台竖直方向最大角度 (注意反馈如果是陀螺仪，则填写陀螺仪的角度)
-#define PITCH_MIN_ANGLE     -20.0f          // 云台竖直方向最小角度 (注意反馈如果是陀螺仪，则填写陀螺仪的角度)
-#define YAW_CHASSIS_ALIGN_ECD         3878            // 云台和底盘对齐指向相同方向时的电机编码器值,若对云台有机械改动需要修改
+#define PITCH_MAX_ANGLE     20.0f           // 云台竖直方向最大角度 (注意反馈如果是陀螺仪，则填写陀螺仪的角度)
+#define PITCH_MIN_ANGLE     -40.0f          // 云台竖直方向最小角度 (注意反馈如果是陀螺仪，则填写陀螺仪的角度)
+#define YAW_CHASSIS_ALIGN_ECD        5995     // 云台和底盘对齐指向相同方向时的电机编码器值,若对云台有机械改动需要修改
 // 底盘参数
 #define CHASSIS_MAX_SPEED_MPS         3.0f            // 底盘最大线速度 (m/s), 遥控满杆映射到此速度
 // 发射参数
@@ -67,7 +67,7 @@ typedef enum
 {
     chassis_zero_force = 0,    /* 底盘停止模式 */
     chassis_follow_gimbal_yaw, /* 跟随云台模式 */
-    chassis_rotate,            /* 旋转 */
+    chassis_rotate,            /* 旋转(小陀螺): 固定 0.2转/s 自旋 + 全向移动 */
     chassis_rotate_reverse,    /* 旋转反向 */
 } chassis_mode_e;
 
@@ -81,6 +81,5 @@ typedef struct
 } Chassis_Ctrl_Cmd_t;
 
 #pragma pack()
-
 
 #endif // _INFANTRY_DEF_H_
