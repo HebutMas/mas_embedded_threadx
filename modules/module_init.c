@@ -38,9 +38,6 @@
 #if MODULE_BOARDCOMM
 #include "module_boardcomm.h"
 #endif
-#if MODULE_LORA
-#include "module_lora.h"
-#endif
 #if MODULE_VOFA
 #include "vofa.h"
 #endif
@@ -81,9 +78,6 @@ void MODULE_Init(void)
 #endif
 #if MODULE_BOARDCOMM
     Module_BoardComm_Init();
-#endif
-#if MODULE_LORA
-    Module_Lora_Init();
 #endif
 #if MODULE_VOFA
     Module_VOFA_Init();
