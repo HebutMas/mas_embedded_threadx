@@ -2,7 +2,7 @@
 # 各 apps/<robot>/robot.cmake 应先 include 本文件，再覆盖差异项。
 # 覆盖方式：直接 set(变量名 新值) 即可，无需前缀。
 
-# 可用模块列表 OFFLINE REMOTE BMI088 INS REFEREE SUPERCAP WT606 MOTOR BOARDCOMM VISION LORA VOFA
+# 可用模块列表 OFFLINE REMOTE BMI088 INS REFEREE SUPERCAP WT606 MOTOR BOARDCOMM VISION LORA VOFA NRF24L01
 
 # 默认模块列表
 set(MODULES_SINGLE   OFFLINE REMOTE BMI088 INS REFEREE SUPERCAP MOTOR)
@@ -89,3 +89,20 @@ set(VOFA_FIREWATER_PREFIX  "vofa:")      # FireWater 前缀
 set(VOFA_TX_INTERVAL_MS    10)           # TX 发送周期 (ms)
 set(VOFA_TASK_STACK_SIZE   1024)         # 任务栈大小
 set(VOFA_TASK_PRIORITY     11)           # 任务优先级
+
+# NRF24L01 默认参数(2.4GHz无线模块; 默认不启用)
+# 注: NRF24L01 默认不在 MODULES_* 列表中(默认不启用)。启用需在 robot.cmake:
+#     1) 将 NRF24L01 加入对应 MODULES_XXX
+#     2) 确认板级 SPI2 已配置(f103_c8: PB13=SCK PB14=MISO PB15=MOSI)
+# 硬件(f103_c8测试板): SPI2, CE=PB0, CSN=PB1, IRQ=PA0
+set(NRF24L01_TASK_STACK_SIZE    1024)  # 任务栈大小
+set(NRF24L01_TASK_PRIORITY      1)     # 任务优先级
+set(NRF24L01_TX_INTERVAL_MS     10)    # 发送周期, 默认100Hz
+set(NRF24L01_TX_ENABLE          1)     # 是否自动发送: 1=发送端, 0=纯接收端(主从模式避免冲突)
+set(NRF24L01_MAX_CAPS           16)    # 最多注册数据项数
+set(NRF24L01_OFFLINE_TIMEOUT_MS 100)   # OFFLINE心跳超时(ms)
+set(NRF24L01_RF_CHANNEL         2)     # 射频通道: 2400+N MHz (收发两端必须一致)
+set(NRF24L01_RF_DATARATE        2)     # 空中速率: 1=1Mbps, 2=2Mbps
+set(NRF24L01_RF_POWER           0)     # 发射功率: 0=0dBm, 1=-6dBm, 2=-12dBm, 3=-18dBm
+set(NRF24L01_RETR_COUNT         3)     # 自动重传次数(0~15)
+set(NRF24L01_RETR_DELAY         0)     # 自动重传间隔: 0=250us, 1=500us, ... 15=4000us
