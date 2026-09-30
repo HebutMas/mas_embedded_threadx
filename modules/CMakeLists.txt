@@ -136,6 +136,13 @@ if(MODULE_VOFA)
     list(APPEND _module_includes ${CMAKE_CURRENT_SOURCE_DIR}/VOFA)
 endif()
 
+if(MODULE_NRF24L01)
+    list(APPEND _module_sources
+        NRF24L01/module_nrf24l01.c
+    )
+    list(APPEND _module_includes ${CMAKE_CURRENT_SOURCE_DIR}/NRF24L01)
+endif()
+
 # 创建库
 add_library(modules OBJECT ${_module_sources})
 
