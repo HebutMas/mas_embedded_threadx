@@ -44,6 +44,9 @@
 #if MODULE_VOFA
 #include "vofa.h"
 #endif
+#if MODULE_NRF24L01
+#include "module_nrf24l01.h"
+#endif
 
 
 #define LOG_LVL LOG_LVL_INFO
@@ -87,6 +90,9 @@ void MODULE_Init(void)
 #endif
 #if MODULE_VOFA
     Module_VOFA_Init();
+#endif
+#if MODULE_NRF24L01
+    Module_NRF24L01_Init();
 #endif
 
     LOG_I("Modules init finished");
