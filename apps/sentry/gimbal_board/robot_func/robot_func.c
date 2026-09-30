@@ -124,46 +124,26 @@ void gimbal_auto_func(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
     // 底盘设为自动模式
     Chassis_Ctrl->chassis_mode = chassis_automode;
 
-    if (receive_packet != NULL && receive_packet->found != 0)
+    if (receive_packet != NULL && SMALL_YAW_PITCH_MIN_ANGLE * DEGREE_2_RAD < -receive_packet->target_pitch &&
+        -receive_packet->target_pitch < SMALL_YAW_PITCH_MAX_ANGLE * DEGREE_2_RAD)
     {
-        if (SMALL_YAW_PITCH_MIN_ANGLE * DEGREE_2_RAD < -receive_packet->target_pitch &&
-            -receive_packet->target_pitch < SMALL_YAW_PITCH_MAX_ANGLE * DEGREE_2_RAD)
+        // 进入跟踪模式
+        Gimbal_Ctrl->auto_search = 0;
+        Gimbal_Ctrl->pitch       = -receive_packet->target_pitch;
+        Gimbal_Ctrl->yaw         = receive_packet->target_yaw + Ins->YawRoundCount * 360.0f * DEGREE_2_RAD;
+        if (receive_packet->fire_advice == 1)
         {
-            // 进入跟踪模式
-            Gimbal_Ctrl->auto_search = 0;
-            Gimbal_Ctrl->pitch       = -receive_packet->target_pitch;
-            Gimbal_Ctrl->yaw         = receive_packet->target_yaw + Ins->YawRoundCount * 360.0f * DEGREE_2_RAD;
-            if (receive_packet->fire_advice == 1)
-            {
-                Shoot_Ctrl->load_mode = load_burstfire;
-            }
-            else
-            {
-                Shoot_Ctrl->load_mode = load_stop;
-            }
+            Shoot_Ctrl->load_mode = load_burstfire;
         }
         else
         {
-            // 进入搜索模式
-            Gimbal_Ctrl->auto_search = 1;
-            Shoot_Ctrl->load_mode    = load_stop;
+            Shoot_Ctrl->load_mode = load_stop;
         }
     }
     else
     {
-        // 无有效数据进入搜索模式
+        // 进入搜索模式
         Gimbal_Ctrl->auto_search = 1;
         Shoot_Ctrl->load_mode    = load_stop;
-    }
-
-    if (receive_packet != NULL && receive_packet->nav_state == 1)
-    {
-        Chassis_Ctrl->vx = receive_packet->vx;
-        Chassis_Ctrl->vy = -receive_packet->vy;
-    }
-    else
-    {
-        Chassis_Ctrl->vx = 0;
-        Chassis_Ctrl->vy = 0;
     }
 }
