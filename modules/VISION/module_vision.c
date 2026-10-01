@@ -12,15 +12,11 @@
 #include <string.h>
 #include "tx_api.h"
 #include "module_offline.h"
+#include "crc_rm.h"
 
 #define LOG_TAG "module_vision"
 #define LOG_LVL LOG_LVL_INFO
 #include "ulog_def.h"
-
-#define SEND_HEADER 0xAA
-#define SEND_TAIL   0x5A
-#define RECV_HEADER 0xBB
-#define RECV_TAIL   0x5B
 
 static ReceivePacket              rx_packet;
 static Offline_Device            *offline_dev = NULL;
@@ -28,7 +24,7 @@ static TX_THREAD                  vision_thread;
 APPS_STACK_SECTION static uint8_t vision_thread_stack[VISION_TASK_STACK_SIZE];
 
 /**
- * @brief 视觉任务 — 阻塞读取 USB 数据, 帧头+长度+帧尾校验后直接拷贝
+ * @brief 视觉任务 — 阻塞读取 USB 数据, 扫描定长帧并校验 CRC16
  */
 static void vision_thread_entry(ULONG arg)
 {
@@ -40,11 +36,11 @@ static void vision_thread_entry(ULONG arg)
         int ret = cdc_acm_recv(buf, sizeof(buf), &rx_len, TX_WAIT_FOREVER);
         if (ret <= 0) continue;
 
-        for (uint32_t i = 0; i + sizeof(ReceivePacket) <= rx_len; i++)
+        for (uint32_t i = 0; i + VISION_FRAME_RX_SIZE <= rx_len; i++)
         {
-            if (buf[i] == RECV_HEADER && buf[i + sizeof(ReceivePacket) - 1] == RECV_TAIL)
+            if (buf[i] == VISION_RX_HEADER && Verify_CRC16_Check_Sum(&buf[i], VISION_FRAME_RX_SIZE))
             {
-                memcpy(&rx_packet, &buf[i], sizeof(ReceivePacket));
+                memcpy(&rx_packet, &buf[i + 1], sizeof(ReceivePacket));
                 Module_Offline_device_update(offline_dev);
                 break;
             }
@@ -75,11 +71,14 @@ void Module_Vision_Init(void)
     LOG_I("Vision module initialized");
 }
 
-void Module_Vision_Send(SendPacket *packet, uint32_t timeout)
+void Module_Vision_Send(const SendPacket *packet, uint32_t timeout)
 {
-    packet->header = SEND_HEADER;
-    packet->tail   = SEND_TAIL;
-    cdc_acm_send((uint8_t *)packet, sizeof(SendPacket), timeout);
+    uint8_t frame[VISION_FRAME_TX_SIZE];
+
+    frame[0] = VISION_TX_HEADER;
+    memcpy(&frame[1], packet, sizeof(SendPacket));
+    Append_CRC16_Check_Sum(frame, sizeof(frame));
+    cdc_acm_send(frame, sizeof(frame), timeout);
 }
 
 ReceivePacket *Module_Vision_Receive(void) { return &rx_packet; }
