@@ -38,8 +38,14 @@
 #if MODULE_BOARDCOMM
 #include "module_boardcomm.h"
 #endif
+#if MODULE_LORA
+#include "module_lora.h"
+#endif
 #if MODULE_VOFA
 #include "vofa.h"
+#endif
+#if MODULE_NRF24L01
+#include "module_nrf24l01.h"
 #endif
 
 
@@ -79,8 +85,14 @@ void MODULE_Init(void)
 #if MODULE_BOARDCOMM
     Module_BoardComm_Init();
 #endif
+#if MODULE_LORA
+    Module_Lora_Init();
+#endif
 #if MODULE_VOFA
     Module_VOFA_Init();
+#endif
+#if MODULE_NRF24L01
+    Module_NRF24L01_Init();
 #endif
 
     LOG_I("Modules init finished");

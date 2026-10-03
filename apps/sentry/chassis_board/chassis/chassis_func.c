@@ -6,16 +6,29 @@
 #include "motor_dji.h"
 #include "power_control.h"
 #include "user_lib.h"
+#include "bsp_dwt.h"
 #include <stdint.h>
+#include <math.h>
 #include "chassis_type.h"
 
 #define LOG_TAG "app_chassis"
 #define LOG_LVL LOG_LVL_DBG
 #include "ulog_def.h"
 
+/* 线速度超前: 用云台相对底盘角速率 dθ/dt, 不分模式
+ * 云台世界系锁定时 dθ/dt ≈ wz; 与底盘同向时变小; 反向时叠加 */
+#define VEL_LEAD_T_S    0.08f
+#define OFFSET_RATE_LP  0.25f
+#define OFFSET_DT_MIN_S 0.0005f /* 小于此视为同一拍重入 */
+#define OFFSET_DT_MAX_S 0.010f  /* 大于此视为卡顿/掉线恢复 */
+
 static DJI_Motor_t                  *chassis_motors[8];
 static float                         chassis_vx, chassis_vy, chassis_wz; // 底盘系速度
 static PIDInstance                   chassis_follow_pid;
+static float                         last_offset_deg;
+static float                         offset_rate_rad; /* dθ/dt (rad/s) */
+static uint32_t                      offset_rate_dwt_cnt;
+static uint8_t                       offset_rate_ready;
 static const Chassis_Swerve_Config_s chassis_swerve_config = {
     .align_rad      = {4458 * 0.000767f, 1010 * 0.000767f, 7177 * 0.000767f, 3756 * 0.000767f}, // lf lb rb rf(rad)
     .decele_ratio   = 16.0f,
@@ -256,9 +269,36 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
                 break;
             }
 
-            // 线速度已经在云台板转换为底盘系
+            // 线速度已在云台板转为底盘系; 再按相对角速率超前实际延迟
             chassis_vx = chassis_cmd->vx;
             chassis_vy = chassis_cmd->vy;
+            {
+                const float dt         = BSP_DWT_GetDeltaT(&offset_rate_dwt_cnt);
+                float       dtheta_deg = chassis_cmd->offset_angle - last_offset_deg;
+                while (dtheta_deg > 180.0f) dtheta_deg -= 360.0f;
+                while (dtheta_deg < -180.0f) dtheta_deg += 360.0f;
+
+                if (offset_rate_ready && fabsf(dtheta_deg) < 5.0f && dt > OFFSET_DT_MIN_S && dt < OFFSET_DT_MAX_S)
+                {
+                    const float dtheta_dt = dtheta_deg * DEGREE_2_RAD / dt;
+                    offset_rate_rad       = (1.0f - OFFSET_RATE_LP) * offset_rate_rad + OFFSET_RATE_LP * dtheta_dt;
+
+                    const float delta = offset_rate_rad * VEL_LEAD_T_S;
+                    const float c     = cosf(delta);
+                    const float s     = sinf(delta);
+                    const float vx    = chassis_vx;
+                    const float vy    = chassis_vy;
+                    chassis_vx        = vx * c + vy * s;
+                    chassis_vy        = -vx * s + vy * c;
+                }
+                else
+                {
+                    offset_rate_rad = 0.0f;
+                }
+
+                last_offset_deg   = chassis_cmd->offset_angle;
+                offset_rate_ready = 1;
+            }
             Chassis_Swerve_Calc(chassis_motors, &chassis_swerve_config, chassis_vx, chassis_vy, chassis_wz);
         }
         else

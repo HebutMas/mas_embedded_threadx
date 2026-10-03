@@ -122,11 +122,25 @@ if(MODULE_BOARDCOMM)
     list(APPEND _module_includes ${CMAKE_CURRENT_SOURCE_DIR}/BOARDCOMM)
 endif()
 
+if(MODULE_LORA)
+    list(APPEND _module_sources
+        LORA/module_lora.c
+    )
+    list(APPEND _module_includes ${CMAKE_CURRENT_SOURCE_DIR}/LORA)
+endif()
+
 if(MODULE_VOFA)
     list(APPEND _module_sources
         VOFA/vofa.c
     )
     list(APPEND _module_includes ${CMAKE_CURRENT_SOURCE_DIR}/VOFA)
+endif()
+
+if(MODULE_NRF24L01)
+    list(APPEND _module_sources
+        NRF24L01/module_nrf24l01.c
+    )
+    list(APPEND _module_includes ${CMAKE_CURRENT_SOURCE_DIR}/NRF24L01)
 endif()
 
 # 创建库

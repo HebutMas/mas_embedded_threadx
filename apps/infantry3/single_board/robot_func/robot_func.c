@@ -14,7 +14,6 @@ int16_t CalcOffsetAngle(float getyawangle)
 
     offset_ecd = getyawangle - YAW_CHASSIS_ALIGN_ECD;
 
-    // 归一化到最小旋转角度对应的编码器差值 ([-ECD_HALF, ECD_HALF])
     while (offset_ecd > ECD_HALF) offset_ecd -= ECD_MAX;
     while (offset_ecd < -ECD_HALF) offset_ecd += ECD_MAX;
 
@@ -27,38 +26,44 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
 
     uint8_t state = Module_Remote_get_offline_status();
 
-    /* RC 在线 */
     if (state & 0x01)
     {
-        /* 摇杆 → 速度比例 (-1.0 ~ +1.0) */
-        Chassis_Ctrl->vx = (float)Module_Remote_get_channel(1) / (float)(DT7_CH_VALUE_MAX - DT7_CH_VALUE_MIN);
-        Chassis_Ctrl->vy = -(float)Module_Remote_get_channel(2) / (float)(DT7_CH_VALUE_MAX - DT7_CH_VALUE_MIN);
+        float ch_scale = 1.0f / (float)(SBUS_CHX_DOWN - SBUS_CHX_BIAS);
 
-        const dt7_custom_t *dt7_custom = Module_Remote_get_dt7_custom();
-        if (dt7_custom != NULL)
+        /* 右摇杆 → 底盘 vx/vy */
+        Chassis_Ctrl->vx = (float)Module_Remote_get_channel(2) * ch_scale;  // 上推为正
+        Chassis_Ctrl->vy = -(float)Module_Remote_get_channel(1) * ch_scale;  // 右推为正
+
+        /* SW4 (CH8) — 底盘模式
+         * 中档 = rotate(小陀螺): 固定 0.2转/s 自旋 + 全向移动
+         * 挡位优先级低于 SW2(CH6) 失控保护 */
         {
-            if (dt7_custom->sw2 == DT7_SW_UP)
-            {
-                Chassis_Ctrl->chassis_mode = chassis_rotate;
-            }
-            else if (dt7_custom->sw2 == DT7_SW_MID)
-            {
+            int16_t ch8 = Module_Remote_get_channel(8);
+            if (ch8 == SBUS_CHX_UP)
                 Chassis_Ctrl->chassis_mode = chassis_follow_gimbal_yaw;
-            }
-            else if (dt7_custom->sw2 == DT7_SW_DOWN)
-            {
-                Chassis_Ctrl->chassis_mode = chassis_rotate_reverse;
-            }
+            else if (ch8 == SBUS_CHX_BIAS)
+                Chassis_Ctrl->chassis_mode = chassis_rotate;
+            else if (ch8 == SBUS_CHX_DOWN)
+                Chassis_Ctrl->chassis_mode = chassis_rotate;
+        }
 
-            /* 云台控制部分 */
-            if (dt7_custom->sw1 == DT7_SW_MID)
+        /* SW2 (CH6) — 云台模式 (保留) */
+        {
+            int16_t ch6 = Module_Remote_get_channel(6);
+            if (ch6 == SBUS_CHX_UP)
             {
                 Gimbal_Ctrl->gimbal_mode = gimbal_gyro_mode;
-                Gimbal_Ctrl->yaw -= 0.001f * (float)(Module_Remote_get_channel(3));
-                Gimbal_Ctrl->pitch += 0.001f * (float)(Module_Remote_get_channel(4));
+                /* 左摇杆 → yaw/pitch 微调 */
+                Gimbal_Ctrl->yaw   -= 0.001f * (float)Module_Remote_get_channel(4);  // 左摇杆左右
+                Gimbal_Ctrl->pitch += 0.001f * (float)Module_Remote_get_channel(3);  // 左摇杆上下
                 VAL_LIMIT(Gimbal_Ctrl->pitch, PITCH_MIN_ANGLE, PITCH_MAX_ANGLE);
             }
-            else if (dt7_custom->sw1 == DT7_SW_DOWN)
+            else if (ch6 == SBUS_CHX_BIAS)
+            {
+                Gimbal_Ctrl->gimbal_mode = gimbal_auto_mode;
+                /* 不改变底盘模式，保持 SW4 设置 */
+            }
+            else if (ch6 == SBUS_CHX_DOWN)
             {
                 Chassis_Ctrl->chassis_mode = chassis_zero_force;
                 Gimbal_Ctrl->gimbal_mode   = gimbal_zero_force;
@@ -66,45 +71,37 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
                 Shoot_Ctrl->friction_mode  = friction_off;
                 Shoot_Ctrl->load_mode      = load_stop;
             }
+        }
 
-            // 发射机构控制部分
-            if (dt7_custom->sw1 == DT7_SW_UP)
+        /* SW1 (CH5) — 摩擦轮开关 / SW3 (CH7) — 拨弹模式 */
+        {
+            int16_t ch5 = Module_Remote_get_channel(5);
+            int16_t ch7 = Module_Remote_get_channel(7);
+
+            if (ch5 == SBUS_CHX_UP)
             {
-                Shoot_Ctrl->shoot_mode    = shoot_on;
-                Shoot_Ctrl->friction_mode = friction_on;
+                Shoot_Ctrl->shoot_mode    = shoot_off;
+                Shoot_Ctrl->friction_mode = friction_off;
                 Shoot_Ctrl->load_mode     = load_stop;
             }
-            else if (dt7_custom->sw1 == DT7_SW_MID)
+            else if (ch5 == SBUS_CHX_BIAS)
             {
                 Shoot_Ctrl->shoot_mode    = shoot_on;
                 Shoot_Ctrl->friction_mode = friction_off;
-
-                if (dt7_custom->wheel == 0)
-                {
-                    Shoot_Ctrl->load_mode = load_stop;
-                }
-                else if (dt7_custom->wheel > 0)
-                {
-                    Shoot_Ctrl->load_mode = load_reverse;
-                }
-                else if (dt7_custom->wheel < 0)
-                {
-                    Shoot_Ctrl->load_mode = load_burstfire;
-                }
-                else
-                {
-                    Shoot_Ctrl->load_mode = load_stop;
-                }
+                Shoot_Ctrl->load_mode     = load_stop;
             }
-        }
-        else
-        {
-            Gimbal_Ctrl->gimbal_mode   = gimbal_zero_force;
-            Chassis_Ctrl->chassis_mode = chassis_zero_force;
-            Shoot_Ctrl->shoot_mode     = shoot_off;
-            Shoot_Ctrl->friction_mode  = friction_off;
-            Shoot_Ctrl->load_mode      = load_stop;
-            memset(Chassis_Ctrl, 0, sizeof(*Chassis_Ctrl));
+            else if (ch5 == SBUS_CHX_DOWN)
+            {
+                Shoot_Ctrl->shoot_mode    = shoot_on;
+                Shoot_Ctrl->friction_mode = friction_on;
+
+                if (ch7 == SBUS_CHX_UP)
+                    Shoot_Ctrl->load_mode = load_1_bullet;
+                else if (ch7 == SBUS_CHX_BIAS)
+                    Shoot_Ctrl->load_mode = load_stop;
+                else if (ch7 == SBUS_CHX_DOWN)
+                    Shoot_Ctrl->load_mode = load_burstfire;
+            }
         }
     }
     else

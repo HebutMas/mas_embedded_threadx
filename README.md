@@ -81,8 +81,9 @@ mas_embedded_threadx/
 │   ├── kfifo/                     # 环形缓冲区
 │   └── utils_init.c / .h          # 工具层初始化
 │
-├── CMSIS-DSP/                     # ARM CMSIS-DSP 数学库
-├── CherryUSB/                     # CherryUSB 设备协议栈
+├── 3rdparty/                      # 第三方依赖（裁剪后仅保留实际使用的部分）
+│   ├── CMSIS-DSP/                 # ARM CMSIS-DSP 数学库（sin/cos/sqrt + f32 矩阵）
+│   └── CherryUSB/                 # CherryUSB 设备协议栈（DWC2 + CDC ACM）
 │
 ├── .clang-format                  # 代码格式化配置
 ├── .clang-tidy                    # 静态检查配置
@@ -100,20 +101,14 @@ git clone git@github.com:HebutMas/mas_embedded_threadx.git // ssh
 
 ### 选择机器人和板型
 
-编辑 `apps/config.cmake` 中的默认值：
+编辑 `apps/config.cmake` 中的配置值：
 
 ```cmake
-set(ROBOT "sentry" CACHE STRING "Target robot")  # hero / engineer / infantry3 / infantry4 / infantry5 / drone / sentry / darts / customcontrol
-set(BOARD "gimbal" CACHE STRING "Board role")    # single / gimbal / chassis
+set(ROBOT "sentry")  # hero / engineer / infantry3 / infantry4 / infantry5 / drone / sentry / darts / customcontrol
+set(BOARD "chassis") # single / gimbal / chassis
 ```
 
-也可不改文件，配置时用命令行覆盖（缓存变量，适合 CI 和多配置切换）：
-
-```bash
-cmake -S board/dji_c -B build/dji_c/Debug --preset Debug -DROBOT=infantry3 -DBOARD=single
-```
-
-> 注意：已配置过的 build 目录以缓存值为准，切换时用 `-DROBOT=...` 覆盖或删除 build 目录。
+构建任务和手动配置都会直接读取该文件。修改后重新运行编译即可。
 
 ### 编译
 

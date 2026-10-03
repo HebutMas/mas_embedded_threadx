@@ -96,6 +96,7 @@ void gimbal_init(void)
                                             {
                                                 .algorithm_type        = CONTROL_LQR,
                                                 .feedback_reverse_flag = 1,
+                                                .motor_reverse_flag   = 1,
                                                 .angle_feedback_source = 1,
                                                 .speed_feedback_source = 1,
                                                 .loop_type             = ANGLE_LOOP,
