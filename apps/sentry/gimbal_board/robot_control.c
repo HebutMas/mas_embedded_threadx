@@ -58,7 +58,7 @@ static void robot_control_task(ULONG thread_input)
         RemoteControlSet(&chassis_cmd, &shoot_cmd, &gimbal_cmd);
 
         /* 虚拟串口 */
-        send_packet.mode = 1 - chassis_upload_data.robot_color;
+        send_packet.mode  = 1 - chassis_upload_data.robot_color;
         send_packet.q[0] = ins->q[0];
         send_packet.q[1] = ins->q[1];
         send_packet.q[2] = ins->q[2];
@@ -68,22 +68,31 @@ static void robot_control_task(ULONG thread_input)
         /* 自动模式 */
         gimbal_auto_func(&chassis_cmd, &shoot_cmd, &gimbal_cmd, ins, receive_packet);
         /* 云台控制 */
-        gimbal_func(&gimbal_cmd, &yaw_ecd);
+        const uint8_t yaw_ecd_valid = gimbal_func(&gimbal_cmd, &yaw_ecd);
         /* 发射机构控制 */
         shoot_func(&shoot_cmd);
 
         /* 板间通讯 */
-        float chassis_vx;
-        float chassis_vy;
-        project_velocity_to_chassis(chassis_cmd.vx, chassis_cmd.vy, yaw_ecd, &chassis_vx, &chassis_vy);
+        float chassis_vx = chassis_cmd.vx;
+        float chassis_vy = chassis_cmd.vy;
+        if (yaw_ecd_valid)
+        {
+            project_velocity_to_chassis(chassis_cmd.vx, chassis_cmd.vy, yaw_ecd, &chassis_vx, &chassis_vy);
+        }
+        else
+        {
+            // 大 yaw 掉线
+            chassis_vx = 0.0f;
+            chassis_vy = 0.0f;
+        }
         VAL_LIMIT(chassis_vx, -CHASSIS_MAX_SPEED_MPS, CHASSIS_MAX_SPEED_MPS);
         VAL_LIMIT(chassis_vy, -CHASSIS_MAX_SPEED_MPS, CHASSIS_MAX_SPEED_MPS);
         // 底盘系 m/s -> 板间 mm/s，底盘端按 1:1 恢复
         chassis_send_cmd.vx           = (int16_t)lroundf(chassis_vx * 1000.0f);
         chassis_send_cmd.vy           = (int16_t)lroundf(chassis_vy * 1000.0f);
         chassis_send_cmd.wz           = (int8_t)(chassis_cmd.wz * 10.0f);
-        chassis_send_cmd.offset_angle = CalcOffsetAngle(yaw_ecd);
-        chassis_send_cmd.chassis_mode = chassis_cmd.chassis_mode;
+        chassis_send_cmd.offset_angle = yaw_ecd_valid ? CalcOffsetAngle(yaw_ecd) : 0;
+        chassis_send_cmd.chassis_mode = yaw_ecd_valid ? chassis_cmd.chassis_mode : chassis_zero_force;
         Module_BoardComm_Send((uint8_t *)&chassis_send_cmd, sizeof(GimbalToChassis_cmd_t));
 
         Module_BoardComm_Receive(&chassis_upload_data, sizeof(ChassisToGimbal_referee_t));
@@ -107,7 +116,7 @@ int robot_control_init(void)
     /* 云台/发射机构初始化 */
     if (gimbal_init() != 0 || shoot_init() != 0)
     {
-        return -1; 
+        return -1;
     }
 
     status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0, robot_control_thread_stack, 1024, 30, 30,

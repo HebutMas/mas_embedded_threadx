@@ -12,10 +12,12 @@ int gimbal_init(void)
     return 0;
 }
 
-void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
+
+uint8_t gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
 {
     (void)gimbal_cmd;
     (void)yaw_ecd;
 
     /* TODO: 实现云台控制 */
+    return 1;
 }

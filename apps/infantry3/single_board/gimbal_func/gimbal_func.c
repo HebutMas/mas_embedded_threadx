@@ -112,7 +112,8 @@ int gimbal_init(void)
     return 0;
 }
 
-void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
+
+uint8_t gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
 {
     if (gimbal_cmd != NULL)
     {
@@ -140,9 +141,14 @@ void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
             Motor_Stop((Motor_Base *)pitch_motor);
         }
     }
-    // 数据反馈
-    if (!Module_Offline_get_device_status(yaw_motor->base.offline_dev) && yaw_ecd != NULL)
+    // 数据反馈: 掉线时 ecd 不刷新, 沿用旧值会让底盘朝一个早已失效的角度死跟
+    if (Module_Offline_get_device_status(yaw_motor->base.offline_dev))
+    {
+        return 0;
+    }
+    if (yaw_ecd != NULL)
     {
         *yaw_ecd = yaw_motor->measure.ecd;
     }
+    return 1;
 }
