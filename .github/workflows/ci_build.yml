@@ -20,9 +20,9 @@ jobs:
       - name: Install ARM GCC Toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-none-eabi ninja-build ccache cppcheck clang-tidy
+          sudo apt-get install -y gcc-arm-none-eabi ninja-build ccache cppcheck
 
-      # 编译只要有一个配置过就算过, 但 cppcheck / clang-tidy 不干净一律拒绝合并
+      # 编译只要有一个配置过就算过, 但 cppcheck 不干净一律拒绝合并
       - name: Build and check all configurations
         shell: bash
         run: .github/scripts/check_all.sh

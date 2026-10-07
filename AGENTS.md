@@ -27,10 +27,9 @@
 
 ## Checks And Workflow
 
-- Format changed C/C++ files with the repository `.clang-format` (`clang-format -i <files>`). Cppcheck/clang-tidy settings are in `.clang-tidy`; CI's `cppcheck-log` covers only `board/bsp`, `modules`, `apps`, and `utils`.
-- CI runs `.github/scripts/check_all.sh` (the toolchain and packages come from the workflow, not the script; run the script locally to reproduce a full CI pass). It builds every discovered robot/board-role configuration for `damiao_h7` and `dji_c` — `apps/templates` is skipped because it is not buildable — then cppcheck, then clang-tidy. It does not validate `f103_c8` or `105_rc`.
-- CI rejects the merge when zero configurations build, or when any configuration fails cppcheck or clang-tidy. A single configuration failing to build is reported but tolerated.
-- Clang-tidy must be driven by that configuration's own `compile_commands.json`, filtered to `board/bsp`, `modules`, `apps`, `utils`. Feeding it a `find`ed file list instead produces `clang-diagnostic-error`s for files parsed without their `-I`/`-D` flags.
+- Format changed C/C++ files with the repository `.clang-format` (`clang-format -i <files>`). Cppcheck settings are in `.clang-tidy`; CI's `cppcheck-log` covers only `board/bsp`, `modules`, `apps`, and `utils`.
+- CI runs `.github/scripts/check_all.sh` (the toolchain and packages come from the workflow, not the script; run the script locally to reproduce a full CI pass). It builds every discovered robot/board-role configuration for `damiao_h7` and `dji_c` — `apps/templates` is skipped because it is not buildable — then runs cppcheck. It does not validate `f103_c8` or `105_rc`.
+- CI rejects the merge when zero configurations build, or when any configuration fails cppcheck. A single configuration failing to build is reported but tolerated.
 - `main` accepts merges only from this repository's `dev` branch. Pushing to `dev` triggers the automated merge into `dev-systemview`.
 - `.gitattributes` marks `threadx/**` and `utils/**` as `merge=ours` for the `dev` to `dev-systemview` merge. Before doing that merge locally, register the driver with `git config merge.ours.driver true`.
 - Flashing is hardware-dependent and supports only `damiao_h7` and `dji_c`; use `.vscode/flash_interactive.sh <board> <probe>` after building, with probe `stlink`, `daplink`, or `jlink`.

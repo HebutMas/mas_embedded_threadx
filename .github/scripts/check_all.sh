@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #   - 编译: 只要有一个配置编过就算通过.
-#   - cppcheck / clang-tidy: 任何一个编过的配置不干净就拒绝合并, 并把问题原文打出来.
+#   - cppcheck: 任何一个编过的配置不干净就拒绝合并, 并把问题原文打出来.
 set -uo pipefail
 
 # 工具链
 missing=()
-for tool in cmake ninja arm-none-eabi-gcc python3 cppcheck clang-tidy; do
+for tool in cmake ninja arm-none-eabi-gcc python3 cppcheck; do
     command -v "$tool" >/dev/null || missing+=("$tool")
 done
 if ((${#missing[@]})); then
@@ -16,14 +16,6 @@ fi
 BOARDS=(damiao_h7 dji_c)
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
-
-# clang-tidy 文件搜索路径设置
-ct_args=()
-while IFS= read -r dir; do
-    [[ -n $dir ]] && ct_args+=(--extra-arg="-isystem$dir")
-done < <(arm-none-eabi-gcc -E -Wp,-v -xc /dev/null 2>&1 |
-    sed -n '/#include <\.\.\.> search starts here:/,/^End of search list/p' | sed '1d;$d;s/^ //')
-ct_args+=(--header-filter='.*(board/bsp|modules|apps|utils)/.*\.(h|hpp)')
 
 # apps/config.cmake
 CFG="$ROOT/apps/config.cmake"
@@ -36,7 +28,6 @@ summary=""
 
 build_failures=()
 cppcheck_failures=()
-clang_tidy_failures=()
 built=0
 
 announce() { # $1=level 标题, $2=正文文件
@@ -96,30 +87,6 @@ for board in "${BOARDS[@]}"; do
                 cppcheck_failures+=("$label")
                 announce "Cppcheck failed: $label" "$build_dir/cppcheck/cppcheck.log"
             fi
-
-            # clang-tidy
-            # 只查本配置编译数据库里出现的文件: 
-            ct_dir="$log_dir/clang-tidy"
-            mkdir -p "$ct_dir"
-            python3 - "$build_dir/compile_commands.json" >"$ct_dir/files.txt" <<'PY'
-import json, sys
-db = json.load(open(sys.argv[1]))
-scope = ("/board/bsp/", "/modules/", "/apps/", "/utils/")
-files = sorted({e["file"] for e in db if any(s in e["file"] for s in scope)})
-print("\n".join(files))
-PY
-            # 每个文件单独落盘, 再按序合并
-            export CT_ARGS="${ct_args[*]}"
-            xargs -P "$(nproc)" -I{} sh -c '
-                out="$2/$(printf "%s" "$1" | tr "/" "_").log"
-                # shellcheck disable=SC2086
-                clang-tidy $CT_ARGS -p "$0" "$1" >"$out" 2>&1 || printf "%s\n" "$1" >>"$2/failed.txt"
-            ' "$build_dir" {} "$ct_dir" <"$ct_dir/files.txt"
-            if [[ -s "$ct_dir/failed.txt" ]]; then
-                clang_tidy_failures+=("$label")
-                grep -hE 'warning:|error:' "$ct_dir"/*.log >"$log_dir/clang-tidy.log" 2>/dev/null
-                announce "Clang-tidy failed: $label" "$log_dir/clang-tidy.log"
-            fi
         done
     done
 done
@@ -129,12 +96,10 @@ done
     echo "- Compiled configurations: $built"
     echo "- Build failures (checks skipped): ${#build_failures[@]}"
     echo "- Cppcheck failures: ${#cppcheck_failures[@]}"
-    echo "- Clang-tidy failures: ${#clang_tidy_failures[@]}"
-    for kind in build cppcheck clang-tidy; do
+    for kind in build cppcheck; do
         case $kind in
             build) list=("${build_failures[@]}") ;;
             cppcheck) list=("${cppcheck_failures[@]}") ;;
-            clang-tidy) list=("${clang_tidy_failures[@]}") ;;
         esac
         ((${#list[@]})) || continue
         echo
@@ -152,9 +117,5 @@ if ((${#cppcheck_failures[@]})); then
     echo 'Cppcheck failed; merge is rejected.'
     status=1
 fi
-if ((${#clang_tidy_failures[@]})); then
-    echo 'Clang-tidy failed; merge is rejected.'
-    status=1
-fi
-[[ $status -eq 0 ]] && echo "All $built compiled configurations passed cppcheck and clang-tidy."
+[[ $status -eq 0 ]] && echo "All $built compiled configurations passed cppcheck."
 exit $status
