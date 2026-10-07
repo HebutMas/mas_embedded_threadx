@@ -17,10 +17,18 @@ BOARDS=(damiao_h7 dji_c)
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
+# clang-tidy 文件搜索路径设置
+ct_args=()
+while IFS= read -r dir; do
+    [[ -n $dir ]] && ct_args+=(--extra-arg="-isystem$dir")
+done < <(arm-none-eabi-gcc -E -Wp,-v -xc /dev/null 2>&1 |
+    sed -n '/#include <\.\.\.> search starts here:/,/^End of search list/p' | sed '1d;$d;s/^ //')
+ct_args+=(--header-filter='.*(board/bsp|modules|apps|utils)/.*\.(h|hpp)')
+
 # apps/config.cmake
 CFG="$ROOT/apps/config.cmake"
 cp "$CFG" "$CFG.bak"
-trap 'mv -f "$CFG.bak" "$CFG"' EXIT
+trap 'mv -f "$CFG.bak" "$CFG" 2>/dev/null || true' EXIT INT TERM
 
 # $GITHUB_STEP_SUMMARY 不存在时(本地跑)丢弃
 summary=""
@@ -101,9 +109,11 @@ files = sorted({e["file"] for e in db if any(s in e["file"] for s in scope)})
 print("\n".join(files))
 PY
             # 每个文件单独落盘, 再按序合并
+            export CT_ARGS="${ct_args[*]}"
             xargs -P "$(nproc)" -I{} sh -c '
                 out="$2/$(printf "%s" "$1" | tr "/" "_").log"
-                clang-tidy -p "$0" "$1" >"$out" 2>&1 || printf "%s\n" "$1" >>"$2/failed.txt"
+                # shellcheck disable=SC2086
+                clang-tidy $CT_ARGS -p "$0" "$1" >"$out" 2>&1 || printf "%s\n" "$1" >>"$2/failed.txt"
             ' "$build_dir" {} "$ct_dir" <"$ct_dir/files.txt"
             if [[ -s "$ct_dir/failed.txt" ]]; then
                 clang_tidy_failures+=("$label")
