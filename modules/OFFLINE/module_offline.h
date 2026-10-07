@@ -53,7 +53,7 @@ typedef struct
 /**
  * @brief 初始化离线检测模块
  */
-void Module_Offline_init(void);
+int Module_Offline_init(void);
 
 /**
  * @brief 注册离线检测设备

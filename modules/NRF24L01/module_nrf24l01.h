@@ -130,7 +130,7 @@ typedef enum
  * @brief 初始化 nRF24L01 模块(SPI参数强制 + 注册BSP设备/EXTI + 配置寄存器 + 起线程)
  * @note  失败只打日志; 与其它模块一致, 不返回错误码
  */
-void Module_NRF24L01_Init(void);
+int Module_NRF24L01_Init(void);
 
 /**
  * @brief 注册一个数据项到收发列表

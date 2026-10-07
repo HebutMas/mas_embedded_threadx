@@ -32,7 +32,7 @@ static void robot_control_task(ULONG thread_input)
         /* 遥控器控制输入 */
         RemoteControlSet(&chassis_cmd, &shoot_cmd, &gimbal_cmd);
 
-                /* 云台控制 */
+        /* 云台控制 */
         gimbal_func(&gimbal_cmd, &yaw_ecd);
         /* 发射机构控制 */
         shoot_func(&shoot_cmd);
@@ -47,7 +47,7 @@ static void robot_control_task(ULONG thread_input)
     }
 }
 
-void robot_control_init(void)
+int robot_control_init(void)
 {
     UINT status;
 
@@ -56,20 +56,23 @@ void robot_control_init(void)
     if (ins == NULL)
     {
         LOG_E("ins is null");
-        return;
+        return -1;
     }
 
-    gimbal_init();
-    shoot_init();
-    chassis_init();
+    if (gimbal_init() != 0 || shoot_init() != 0 || chassis_init() != 0)
+    {
+        return -1; 
+    }
 
     status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0, robot_control_thread_stack, 1024, 30, 30,
                               TX_NO_TIME_SLICE, TX_AUTO_START);
     if (status != TX_SUCCESS)
     {
         LOG_E("robot_control_task failed!");
-        return;
+        return -1;
     }
 
     LOG_I("robot_control init success!");
+
+    return 0;
 }

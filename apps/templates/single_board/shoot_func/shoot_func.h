@@ -5,9 +5,9 @@
 #ifndef _SHOOT_FUNC_H_
 #define _SHOOT_FUNC_H_
 
-#include "<robot>_def.h"   /* TODO: 改为你的 def 文件 */
+#include "<robot>_def.h" /* TODO: 改为你的 def 文件 */
 
-void shoot_init(void);
+int shoot_init(void);
 
 void shoot_func(Shoot_Ctrl_Cmd_t *shoot_cmd);
 

@@ -154,7 +154,7 @@ typedef struct
 /**
  * @brief 初始化遥控/图传模块
  */
-void Module_Remote_init(void);
+int Module_Remote_init(void);
 
 /**
  * @brief 获取统一遥控数据指针

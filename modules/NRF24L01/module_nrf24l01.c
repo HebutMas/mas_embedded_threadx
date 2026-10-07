@@ -387,9 +387,9 @@ static void nrf_irq_callback(void)
 
 /* ================= 初始化 ================= */
 
-void Module_NRF24L01_Init(void)
+int Module_NRF24L01_Init(void)
 {
-    if (g_nrf.initialized) return;
+    if (g_nrf.initialized) return 0;
 
     /* 静态 g_nrf 已在 .bss 清零, 无需 memset(且 memset 会清掉已注册项) */
 
@@ -405,7 +405,7 @@ void Module_NRF24L01_Init(void)
     if (HAL_SPI_Init(&NRF24L01_SPI) != HAL_OK)
     {
         LOG_E("SPI re-init failed");
-        return;
+        return -1;
     }
 
     /* 自检: 模块用 DMA 传输, hdmatx/hdmarx 必须已由板级 CubeMX 的 MSP 链接(_HAL_LINKDMA);
@@ -413,7 +413,7 @@ void Module_NRF24L01_Init(void)
     if (NRF24L01_SPI.hdmatx == NULL || NRF24L01_SPI.hdmarx == NULL)
     {
         LOG_E("SPI2 DMA not configured: enable SPI2_RX/SPI2_TX DMA in CubeMX (see README)");
-        return;
+        return -1;
     }
 
     /* CSN 由 BSP 管理 */
@@ -427,7 +427,7 @@ void Module_NRF24L01_Init(void)
     if (g_nrf.spi_dev == NULL)
     {
         LOG_E("BSP SPI device init failed");
-        return;
+        return -1;
     }
 
     /* ---- 2. 注册 EXTI 回调(避免与其他模块的 HAL_GPIO_EXTI_Callback 冲突; 引脚/中断由板级配置) ---- */
@@ -504,12 +504,14 @@ void Module_NRF24L01_Init(void)
                          NRF24L01_TASK_PRIORITY, TX_NO_TIME_SLICE, TX_AUTO_START) != TX_SUCCESS)
     {
         LOG_E("Thread create failed");
-        return;
+        return -1;
     }
 
     g_nrf.initialized = 1;
     LOG_I("NRF24L01 initialized: ch=%d rate=%dMbps power=%ddBm tx=%d rx=%d", NRF24L01_RF_CHANNEL, NRF24L01_RF_DATARATE,
           NRF24L01_RF_POWER == 0 ? 0 : -6 * NRF24L01_RF_POWER, NRF24L01_TX_ENABLE, NRF24L01_RX_ENABLE);
+
+    return 0;
 }
 
 /* ================= 注册 ================= */

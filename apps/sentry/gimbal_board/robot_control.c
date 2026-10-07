@@ -86,11 +86,13 @@ static void robot_control_task(ULONG thread_input)
         chassis_send_cmd.chassis_mode = chassis_cmd.chassis_mode;
         Module_BoardComm_Send((uint8_t *)&chassis_send_cmd, sizeof(GimbalToChassis_cmd_t));
 
+        Module_BoardComm_Receive(&chassis_upload_data, sizeof(ChassisToGimbal_referee_t));
+
         tx_thread_sleep(2);
     }
 }
 
-void robot_control_init(void)
+int robot_control_init(void)
 {
     UINT status;
 
@@ -99,24 +101,24 @@ void robot_control_init(void)
     if (ins == NULL)
     {
         LOG_E("ins is null");
-        return;
+        return -1;
     }
 
-    /* 云台初始化 */
-    gimbal_init();
-    /* 发射机构初始化 */
-    shoot_init();
-
-    /* 板间通讯注册 */
-    Module_BoardComm_RegisterRxBuffer(&chassis_upload_data, sizeof(ChassisToGimbal_referee_t));
+    /* 云台/发射机构初始化 */
+    if (gimbal_init() != 0 || shoot_init() != 0)
+    {
+        return -1; 
+    }
 
     status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0, robot_control_thread_stack, 1024, 30, 30,
                               TX_NO_TIME_SLICE, TX_AUTO_START);
     if (status != TX_SUCCESS)
     {
         LOG_E("robot_control_task failed!");
-        return;
+        return -1;
     }
 
     LOG_I("robot_control init success!");
+
+    return 0;
 }

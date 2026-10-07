@@ -11,8 +11,7 @@
 
 #include "infantry_def.h"
 
-
-void chassis_init(void);
+int chassis_init(void);
 
 void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd);
 

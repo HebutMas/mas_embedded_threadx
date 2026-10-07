@@ -59,7 +59,7 @@ endif()
 
 // MODULE_Init() 函数内
 #if MODULE_VL53L0X
-    Module_VL53L0X_Init();
+    ok &= Module_VL53L0X_Init() == 0;
 #endif
 ```
 
@@ -121,7 +121,7 @@ set(VL53L0X_TASK_STACK_SIZE 1024)        # (可选) 覆盖默认参数
 | 目录名 | 全大写 | `VL53L0X/` |
 | 文件名 | `module_<小写>.h/.c` | `module_vl53l0x.c` |
 | CMake 宏 | `MODULE_` 前缀 | `MODULE_VL53L0X` |
-| Init 函数 | `Module_<CamelCase>_Init()` | `Module_VL53L0X_Init()` |
+| Init 函数 | `int Module_<CamelCase>_Init(void)` | `int Module_VL53L0X_Init(void)` |
 | 参数宏 | `<MODULE>_<PARAM>` | `VL53L0X_TASK_STACK_SIZE` |
 | 默认参数 | `#ifndef` 包裹在 `.h` 中 | 允许 `module_config.h` 提前覆盖 |
 
