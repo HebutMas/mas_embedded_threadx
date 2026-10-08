@@ -18,6 +18,6 @@ extern TX_SEMAPHORE g_can_tx_sem;
  * @brief 初始化 CAN 收发后台任务
  * @note  必须在 tx_application_define() 中调用, 且在 BSP_CAN_Device_Init 之前
  */
-void BSP_CAN_TaskInit(void);
+int BSP_CAN_TaskInit(void);
 
 #endif /* _BSP_CAN_TASK_H_ */

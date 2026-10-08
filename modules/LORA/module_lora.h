@@ -27,7 +27,7 @@ typedef enum
 /* 注册项只保存用户变量指针，不复制变量内容。 */
 int Lora_Register(const char *name, void *value, Lora_Data_Type type);
 
-void Module_Lora_Init(void);
-int  Lora_Start(void);
+int Module_Lora_Init(void);
+int Lora_Start(void);
 
 #endif /* _MODULE_LORA_H_ */

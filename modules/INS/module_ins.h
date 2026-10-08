@@ -54,7 +54,7 @@ typedef struct
  * @description: 初始化INS模块
  * @return {*}
  */
-void Module_INS_Init();
+int Module_INS_Init(void);
 /**
  * @description: 获取Ins_t指针
  * @return {Ins_t *}，返回Ins_t指针

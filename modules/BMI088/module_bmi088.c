@@ -212,7 +212,7 @@ void Module_BMI088_temp_ctrl(void)
 
 Bmi088_device_t *Module_BMI088_get_device(void) { return bmi088_device.initialized ? &bmi088_device : NULL; }
 
-void Module_BMI088_init(void)
+int Module_BMI088_init(void)
 {
     memset(&bmi088_device, 0, sizeof(bmi088_device));
 
@@ -275,7 +275,7 @@ void Module_BMI088_init(void)
     if (!bmi088_device.acc_device || !bmi088_device.gyro_device || !bmi088_device.bmi088_pwm)
     {
         LOG_E("SPI/PWM device init failed");
-        return;
+        return -1;
     }
 
     /* 传感器初始化 */
@@ -304,7 +304,7 @@ void Module_BMI088_init(void)
     uint8_t flash_buf[sizeof(BMI088_Cali_Offset_t) + 2] = {0};
     BSP_FLASH_Read_Buffer(flash_buf, sizeof(flash_buf));
 
-    //if(1)如果需要重新标定数据
+    // if(1)如果需要重新标定数据
     if (flash_buf[sizeof(BMI088_Cali_Offset_t) + 1] != 0xAA)
     {
         /* 无有效标定数据, 执行标定 */
@@ -318,8 +318,9 @@ void Module_BMI088_init(void)
     if (bmi088_device.BMI088_ERORR_CODE == BMI088_NO_ERROR)
     {
         LOG_I("BMI088 init success");
-        return;
     }
 
     LOG_W("BMI088 init with errors: 0x%02X", bmi088_device.BMI088_ERORR_CODE);
+
+    return 0;
 }

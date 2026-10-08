@@ -36,7 +36,7 @@ static const Chassis_Swerve_Config_s chassis_swerve_config = {
     .wheel_r        = 0.5f,
 };
 
-void chassis_init(void)
+int chassis_init(void)
 {
     PID_Init_Config_s config = {
         .MaxOut = 5, .IntegralLimit = 0.01, .DeadBand = 12, .Kp = 0.065, .Ki = 0, .Kd = 0, .Improve = 0x01}; // enable integratiaon limit
@@ -79,7 +79,7 @@ void chassis_init(void)
     if (chassis_motors[0] == NULL)
     {
         LOG_E("chassis motor[0] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[0]->base, PC_ROLE_DRIVE, power_config);
 
@@ -91,7 +91,7 @@ void chassis_init(void)
     if (chassis_motors[1] == NULL)
     {
         LOG_E("chassis motor[1] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[1]->base, PC_ROLE_DRIVE, power_config);
 
@@ -103,7 +103,7 @@ void chassis_init(void)
     if (chassis_motors[2] == NULL)
     {
         LOG_E("chassis motor[2] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[2]->base, PC_ROLE_DRIVE, power_config);
 
@@ -115,7 +115,7 @@ void chassis_init(void)
     if (chassis_motors[3] == NULL)
     {
         LOG_E("chassis motor[3] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[3]->base, PC_ROLE_DRIVE, power_config);
 
@@ -156,7 +156,7 @@ void chassis_init(void)
     if (chassis_motors[4] == NULL)
     {
         LOG_E("chassis motor[4] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[4]->base, PC_ROLE_STEER, gm6020_power_config);
 
@@ -168,7 +168,7 @@ void chassis_init(void)
     if (chassis_motors[5] == NULL)
     {
         LOG_E("chassis motor[5] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[5]->base, PC_ROLE_STEER, gm6020_power_config);
 
@@ -180,7 +180,7 @@ void chassis_init(void)
     if (chassis_motors[6] == NULL)
     {
         LOG_E("chassis motor[6] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[6]->base, PC_ROLE_STEER, gm6020_power_config);
 
@@ -192,13 +192,15 @@ void chassis_init(void)
     if (chassis_motors[7] == NULL)
     {
         LOG_E("chassis motor[7] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[7]->base, PC_ROLE_STEER, gm6020_power_config);
 
     PowerControl_SetLimit(120, 60, 0);
 
     LOG_I("Chassis initialized");
+
+    return 0;
 }
 
 void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)

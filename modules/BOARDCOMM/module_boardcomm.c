@@ -11,35 +11,41 @@ static Can_Device            *boardcomm_dev         = NULL;
 static Offline_Device        *boardcomm_offline_dev = NULL;
 static BoardComm_RxCallback_t app_rx_callback       = NULL;
 
-/* RegisterRxBuffer 模式 */
-static void   *rx_buffer       = NULL;
-static uint8_t rx_expected_len = 0;
+/* 双缓冲区 */
+static uint8_t           rx_frame[2][BOARDCOMM_FRAME_MAX];
+static uint8_t           rx_frame_len;
+static volatile uint32_t rx_idx;
 
 #if !SINGLE_BOARD
 
-/* BSP CAN 内部回调 → 转发给 app 注册的回调 / 直接 memcpy 到注册的缓冲区 */
+/* BSP CAN 内部回调 → 转发给 app 注册的回调 / 写入双缓冲区 */
 static void boardcomm_rx_callback(Can_Device *dev, const uint8_t *data, uint8_t len)
 {
     (void)dev;
 
-    if (rx_buffer != NULL && len == rx_expected_len)
-    {
-        memcpy(rx_buffer, data, len);
-        Module_Offline_device_update(boardcomm_offline_dev);
-    }
-    else if (app_rx_callback != NULL)
+    if (app_rx_callback != NULL)
     {
         app_rx_callback(data, len);
         Module_Offline_device_update(boardcomm_offline_dev);
+        return;
     }
+
+    if (len == 0 || len > BOARDCOMM_FRAME_MAX)
+    {
+        return;
+    }
+
+    memcpy(rx_frame[rx_idx], data, len);
+    rx_frame_len = len;
+    rx_idx ^= 1;
+    Module_Offline_device_update(boardcomm_offline_dev);
 }
 #endif
 
-void Module_BoardComm_Init(void)
+int Module_BoardComm_Init(void)
 {
 #if SINGLE_BOARD
     LOG_I("BoardComm skipped (single board)");
-    return;
 #endif
 
 #if CHASSIS_BOARD
@@ -65,6 +71,7 @@ void Module_BoardComm_Init(void)
     if (boardcomm_dev == NULL)
     {
         LOG_E("Failed to init can device");
+        return -1;
     }
 
     Offline_Init_config_t offlineconfig = {
@@ -77,19 +84,38 @@ void Module_BoardComm_Init(void)
     if (boardcomm_offline_dev == NULL)
     {
         LOG_E("offline device register error");
-        return;
+        return -1;
     }
 
     LOG_I("BoardComm initialized");
+
+    return 0;
 }
 
 void Module_BoardComm_Send(uint8_t *data, uint8_t len)
 {
-    if (boardcomm_dev == NULL || data == NULL || len == 0 || len > 8)
+    if (data == NULL || len == 0 || len > BOARDCOMM_FRAME_MAX)
     {
+        LOG_E("send dropped: data=%p len=%u", (void *)data, len);
+        return;
+    }
+    if (boardcomm_dev == NULL)
+    {
+        LOG_E("send dropped: can device not inited");
         return;
     }
     BSP_CAN_Send(boardcomm_dev, data, len);
+}
+
+uint8_t Module_BoardComm_Receive(void *dst, uint8_t len)
+{
+    if (dst == NULL || len == 0 || len > BOARDCOMM_FRAME_MAX || len != rx_frame_len)
+    {
+        return 0;
+    }
+
+    memcpy(dst, rx_frame[rx_idx ^ 1u], len);
+    return 1;
 }
 
 uint8_t Module_BoardComm_Get_Offline_State(void)
@@ -102,9 +128,3 @@ uint8_t Module_BoardComm_Get_Offline_State(void)
 }
 
 void Module_BoardComm_RegisterRx(BoardComm_RxCallback_t callback) { app_rx_callback = callback; }
-
-void Module_BoardComm_RegisterRxBuffer(void *buffer, uint8_t expected_len)
-{
-    rx_buffer       = buffer;
-    rx_expected_len = expected_len;
-}

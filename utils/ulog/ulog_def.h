@@ -66,6 +66,14 @@ extern "C" {
 #define ULOG_COLOR_ASSERT F_MAGENTA
 #endif
 
+#define LOG_E_LOCK(...)                                                                                                                              \
+    do                                                                                                                                               \
+    {                                                                                                                                                \
+        ulog_output(LOG_LVL_ERROR, LOG_TAG, true, __VA_ARGS__);                                                                                      \
+        ulog_flush();                                                                                                                                \
+        while (1);                                                                                                                                   \
+    } while (0)
+
 /* ========================== 断言 ========================== */
 #ifdef ULOG_ASSERT_ENABLE
 #define ULOG_ASSERT(EXPR)                                                                                                                            \

@@ -10,15 +10,22 @@
 /* 内部辅助函数 */
 
 /* 角度回环 - 将角度限制在 [-max/2, +max/2) 范围内 */
-static void AngleLoop_f(float *angle, float max)
+static float AngleLoop_f(float angle, float max)
 {
-    while ((*angle < -(max / 2)) || (*angle > (max / 2)))
+    if (!isfinite(angle))
     {
-        if (*angle < -(max / 2))
-            *angle += max;
-        else if (*angle > (max / 2))
-            *angle -= max;
+        return 0.0f;
     }
+    angle = fmodf(angle, max);
+    if (angle > (max / 2))
+    {
+        angle -= max;
+    }
+    else if (angle < -(max / 2))
+    {
+        angle += max;
+    }
+    return angle;
 }
 
 /* 对外函数 */
@@ -71,14 +78,11 @@ void Chassis_Swerve_Calc(DJI_Motor_t *motors[8], const Chassis_Swerve_Config_s *
         else
         {
             float vector_rad       = atan2f(local_vy, local_vx);
-            float target_abs_angle = align_rad[i] + vector_rad;
-            AngleLoop_f(&target_abs_angle, TWO_PI);
+            float target_abs_angle = AngleLoop_f(align_rad[i] + vector_rad, TWO_PI);
 
-            float current_single = motors[i + 4]->base.measure.total_angle;
-            AngleLoop_f(&current_single, TWO_PI);
+            float current_single = AngleLoop_f(motors[i + 4]->base.measure.total_angle, TWO_PI);
 
-            float diff = target_abs_angle - current_single;
-            AngleLoop_f(&diff, TWO_PI);
+            float diff = AngleLoop_f(target_abs_angle - current_single, TWO_PI);
 
             if (diff > HALF_PI)
             {
@@ -95,14 +99,13 @@ void Chassis_Swerve_Calc(DJI_Motor_t *motors[8], const Chassis_Swerve_Config_s *
                 target_steer_rad = target_abs_angle;
             }
 
-            AngleLoop_f(&target_steer_rad, TWO_PI);
+            target_steer_rad         = AngleLoop_f(target_steer_rad, TWO_PI);
             last_target_angle_rad[i] = target_steer_rad;
         }
 
         Motor_SetRef((Motor_Base *)motors[i], target_speed_rad * (float)drct_factor);
 
-        float delta = target_steer_rad - motors[i + 4]->base.measure.total_angle;
-        AngleLoop_f(&delta, TWO_PI);
+        float delta = AngleLoop_f(target_steer_rad - motors[i + 4]->base.measure.total_angle, TWO_PI);
         Motor_SetRef((Motor_Base *)motors[i + 4], motors[i + 4]->base.measure.total_angle + delta);
     }
 }
@@ -137,7 +140,6 @@ void Chassis_Omni_Calc(DJI_Motor_t *motors[4], const Chassis_Diff_Config_s *cfg,
     for (int i = 0; i < 4; i++) Motor_SetRef((Motor_Base *)motors[i], wheel_speed[i]);
 }
 
-
 Chassis_Velocity_s Chassis_Swerve_Fwd(const DJI_Motor_t *motors[8], const Chassis_Swerve_Config_s *cfg)
 {
     const float a  = cfg->wheel_r * SQRT2_2;
@@ -150,8 +152,7 @@ Chassis_Velocity_s Chassis_Swerve_Fwd(const DJI_Motor_t *motors[8], const Chassi
 
     for (int i = 0; i < 4; i++)
     {
-        float steer = motors[i + 4]->base.measure.total_angle;
-        AngleLoop_f(&steer, TWO_PI);
+        float steer = AngleLoop_f(motors[i + 4]->base.measure.total_angle, TWO_PI);
 
         float vi  = motors[i]->base.measure.speed_rad * R;
         float vix = vi * cosf(steer);
@@ -204,7 +205,6 @@ Chassis_Velocity_s Chassis_Omni_Fwd(const DJI_Motor_t *motors[4], const Chassis_
 
     return vel;
 }
-
 
 void Chassis_Odom_Reset(Chassis_Odom_s *odom)
 {

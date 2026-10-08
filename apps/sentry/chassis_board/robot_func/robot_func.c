@@ -19,7 +19,7 @@ void handle_referee_data(ChassisToGimbal_referee_t *referee_data)
     {
         referee_data->robot_color = 0; // 红方（默认）
     }
-    referee_data->bullet_allow     = (allowed_bullet->bullet_17mm_allowed < 0) ? 0 : allowed_bullet->bullet_17mm_allowed;
+    referee_data->bullet_allow     = allowed_bullet->bullet_17mm_allowed;
     referee_data->current_hp       = robot_status->current_hp;
     referee_data->game_progress    = game_status->type_progress.game_progress;
     referee_data->shooter_heat_pct = power_heat_data->shooter_17mm_heat;

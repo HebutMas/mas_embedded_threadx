@@ -232,14 +232,14 @@ static void ins_task_entry(ULONG arg)
             // 将运动加速度转换回导航系
             BodyFrameToEarthFrame(ins.MotionAccel_b, ins.MotionAccel_n, ins.q);
 
-            ins.euler_angle[0]    = QEKF_INS.Roll;
-            ins.euler_angle[1]    = QEKF_INS.Pitch;
-            ins.euler_angle[2]    = QEKF_INS.Yaw;
-            
-            ins.euler_rad[0]      = QEKF_INS.Roll * DEGREE_2_RAD;
-            ins.euler_rad[1]      = QEKF_INS.Pitch * DEGREE_2_RAD;
-            ins.euler_rad[2]      = QEKF_INS.Yaw * DEGREE_2_RAD;
-            
+            ins.euler_angle[0] = QEKF_INS.Roll;
+            ins.euler_angle[1] = QEKF_INS.Pitch;
+            ins.euler_angle[2] = QEKF_INS.Yaw;
+
+            ins.euler_rad[0] = QEKF_INS.Roll * DEGREE_2_RAD;
+            ins.euler_rad[1] = QEKF_INS.Pitch * DEGREE_2_RAD;
+            ins.euler_rad[2] = QEKF_INS.Yaw * DEGREE_2_RAD;
+
             ins.YawTotalAngle_rad = QEKF_INS.YawTotalAngle * DEGREE_2_RAD;
             ins.YawRoundCount     = QEKF_INS.YawRoundCount;
 
@@ -256,13 +256,13 @@ static void ins_task_entry(ULONG arg)
 }
 
 /* 对外接口 */
-void Module_INS_Init()
+int Module_INS_Init(void)
 {
     bmi088_dev = Module_BMI088_get_device();
     if (bmi088_dev == NULL)
     {
         LOG_E("Failed to init bmi088!");
-        return;
+        return -1;
     }
     // 初始化IMU参数修正结构体
     IMU_Param.scale[0] = 1.0f;
@@ -287,8 +287,10 @@ void Module_INS_Init()
     if (status != TX_SUCCESS)
     {
         LOG_E("Failed to create INS task");
-        return;
+        return -1;
     }
+
+    return 0;
 }
 
 const Ins_t *Module_INS_get()

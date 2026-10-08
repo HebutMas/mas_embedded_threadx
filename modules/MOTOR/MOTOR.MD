@@ -242,7 +242,7 @@ float Motor_CalculateTorque(Motor_Base *motor);
 void Motor_Start/Stop/SetRef/ChangeFeed/OuterLoop/SetForwardTorque/SetOutputTorque(Motor_Base*, ...);
 ```
 ```c
-void Module_Motor_Init(void);                       
+int  Module_Motor_Init(void);
 ```
 
 ## 注意事项

@@ -25,14 +25,17 @@ static void motor_task_entry(ULONG thread_input)
     }
 }
 
-void Module_Motor_Init(void)
+int Module_Motor_Init(void)
 {
     UINT ret = tx_thread_create(&motor_thread, "motor", motor_task_entry, 0, motor_thread_stack, MOTOR_TASK_STACK_SIZE, MOTOR_TASK_PRIORITY,
                                 MOTOR_TASK_PRIORITY, TX_NO_TIME_SLICE, TX_AUTO_START);
     if (ret != TX_SUCCESS)
     {
         LOG_E("Failed to create motor thread");
+        return -1;
     }
 
     LOG_I("Motor module initialized");
+
+    return 0;
 }

@@ -86,32 +86,34 @@ static void can_tx_task_entry(ULONG arg)
 
 /* 对外函数 */
 
-void BSP_CAN_TaskInit(void)
+int BSP_CAN_TaskInit(void)
 {
     if (tx_semaphore_create(&g_can_rx_sem, "can_rx_sem", 0) != TX_SUCCESS)
     {
         LOG_E("rx sem create failed");
-        return;
+        return -1;
     }
     if (tx_semaphore_create(&g_can_tx_sem, "can_tx_sem", 0) != TX_SUCCESS)
     {
         LOG_E("tx sem create failed");
-        return;
+        return -1;
     }
 
     if (tx_thread_create(&g_can_rx_thread, "CAN RX Task", can_rx_task_entry, 0, g_can_rx_stack, BSP_CAN_TASK_STACK_SIZE, BSP_CAN_RX_TASK_PRIORITY,
                          BSP_CAN_RX_TASK_PRIORITY, TX_NO_TIME_SLICE, TX_AUTO_START) != TX_SUCCESS)
     {
         LOG_E("rx task create failed");
-        return;
+        return -1;
     }
 
     if (tx_thread_create(&g_can_tx_thread, "CAN TX Task", can_tx_task_entry, 0, g_can_tx_stack, BSP_CAN_TASK_STACK_SIZE, BSP_CAN_TX_TASK_PRIORITY,
                          BSP_CAN_TX_TASK_PRIORITY, TX_NO_TIME_SLICE, TX_AUTO_START) != TX_SUCCESS)
     {
         LOG_E("tx task create failed");
-        return;
+        return -1;
     }
 
     LOG_I("CAN tasks ready");
+
+    return 0;
 }
