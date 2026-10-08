@@ -8,12 +8,12 @@
 #include "ulog_def.h"
 
 /* 可调参数 */
-#define STEER_RATIO          0.8f   /* 舵向轮最大功率占比 */
-#define ERROR_THRESHOLD      20.0f  /* 完全按误差分配: sumErr 上限 (rad/s) */
-#define PROP_THRESHOLD       15.0f  /* 完全按比例分配: sumErr 下限 (rad/s) */
-#define IDLE_WHEEL_ERR_RAD   10.47f /* 悬空轮保护: 速度误差阈值 */
-#define CLAMP(x, lo, hi)     ((x) < (lo) ? (lo) : ((x) > (hi) ? (hi) : (x)))
-#define ABS(x)               ((x) >= 0.0f ? (x) : -(x))
+#define STEER_RATIO        0.8f   /* 舵向轮最大功率占比 */
+#define ERROR_THRESHOLD    20.0f  /* 完全按误差分配: sumErr 上限 (rad/s) */
+#define PROP_THRESHOLD     15.0f  /* 完全按比例分配: sumErr 下限 (rad/s) */
+#define IDLE_WHEEL_ERR_RAD 10.47f /* 悬空轮保护: 速度误差阈值 */
+#define CLAMP(x, lo, hi)   ((x) < (lo) ? (lo) : ((x) > (hi) ? (hi) : (x)))
+#define ABS(x)             ((x) >= 0.0f ? (x) : -(x))
 
 typedef struct
 {
@@ -24,13 +24,19 @@ typedef struct
     float             assigned_power; /* 分配后功率     */
 } PC_Node_t;
 
-static PC_Node_t    s_nodes[POWER_CTRL_MAX_MOTORS];
-static uint8_t      s_count;
+static PC_Node_t s_nodes[POWER_CTRL_MAX_MOTORS];
+static uint8_t   s_count;
 
-static float        s_power_limit   = 45.0f;
-static float        s_buffer_energy = 60.0f;
-static uint8_t      s_use_buffer    = 1;
-static PIDInstance  s_buffer_pid;
+static float       s_power_limit   = 45.0f;
+static float       s_buffer_energy = 60.0f;
+static uint8_t     s_use_buffer    = 1;
+static PIDInstance s_buffer_pid;
+
+// limit_group 的中间量
+static float s_omega[POWER_CTRL_MAX_MOTORS];  /* 输出轴角速度 (rad/s) */
+static float s_tau[POWER_CTRL_MAX_MOTORS];    /* 输出轴扭矩   (Nm) */
+static float s_cmdPow[POWER_CTRL_MAX_MOTORS]; /* 估算功率     (W) */
+static float s_errRad[POWER_CTRL_MAX_MOTORS]; /* |ref - speed| (rad/s) */
 
 /**
  * @brief 对一组电机执行混合权重功率分配
@@ -47,11 +53,6 @@ static void limit_group(PC_Node_t **nodes, uint8_t N, float max_power, float *cm
         return;
     }
 
-    float omega[POWER_CTRL_MAX_MOTORS];  /* 输出轴角速度 (rad/s) */
-    float tau[POWER_CTRL_MAX_MOTORS];    /* 输出轴扭矩   (Nm) */
-    float cmdPow[POWER_CTRL_MAX_MOTORS]; /* 估算功率     (W) */
-    float errRad[POWER_CTRL_MAX_MOTORS]; /* |ref - speed| (rad/s) */
-
     float sum_cmd = 0.0f, allocatable = 0.0f, sum_pos = 0.0f, sum_err = 0.0f;
 
     for (uint8_t i = 0; i < N; i++)
@@ -61,22 +62,22 @@ static void limit_group(PC_Node_t **nodes, uint8_t N, float max_power, float *cm
         float       k2 = nodes[i]->param.k2;
         float       k3 = nodes[i]->param.k3;
 
-        omega[i]  = m->measure.speed_rad / m->info.gear_ratio;
-        tau[i]    = m->controller.output_torque; /* 通用: 命令扭矩 (Nm) */
+        s_omega[i] = m->measure.speed_rad / m->info.gear_ratio;
+        s_tau[i]   = m->controller.output_torque; /* 通用: 命令扭矩 (Nm) */
 
         /* P = τ·Ω + k1·|Ω| + k2·τ² + k3 */
-        cmdPow[i] = tau[i] * omega[i] + k1 * ABS(omega[i]) + k2 * tau[i] * tau[i] + k3;
+        s_cmdPow[i] = s_tau[i] * s_omega[i] + k1 * ABS(s_omega[i]) + k2 * s_tau[i] * s_tau[i] + k3;
 
-        nodes[i]->raw_power = cmdPow[i];
-        sum_cmd += cmdPow[i];
-        errRad[i] = ABS(m->controller.ref - m->measure.speed_rad);
+        nodes[i]->raw_power = s_cmdPow[i];
+        sum_cmd += s_cmdPow[i];
+        s_errRad[i] = ABS(m->controller.ref - m->measure.speed_rad);
 
-        if (cmdPow[i] <= 0.0f)
-            allocatable += (-cmdPow[i]);
+        if (s_cmdPow[i] <= 0.0f)
+            allocatable += (-s_cmdPow[i]);
         else
         {
-            sum_pos += cmdPow[i];
-            sum_err += errRad[i];
+            sum_pos += s_cmdPow[i];
+            sum_err += s_errRad[i];
         }
     }
 
@@ -99,24 +100,23 @@ static void limit_group(PC_Node_t **nodes, uint8_t N, float max_power, float *cm
 
     for (uint8_t i = 0; i < N; i++)
     {
-        if (cmdPow[i] <= 0.0f) continue; /* 再生功率不限制 */
+        if (s_cmdPow[i] <= 0.0f) continue; /* 再生功率不限制 */
 
         Motor_Base *m = nodes[i]->motor;
 
         /* 混合权重 */
-        float w_err  = (sum_err  > 1e-5f) ? (errRad[i] / sum_err)  : (1.0f / N);
-        float w_prop = (sum_pos  > 1e-5f) ? (cmdPow[i] / sum_pos)  : (1.0f / N);
+        float w_err  = (sum_err > 1e-5f) ? (s_errRad[i] / sum_err) : (1.0f / N);
+        float w_prop = (sum_pos > 1e-5f) ? (s_cmdPow[i] / sum_pos) : (1.0f / N);
         float w      = confidence * w_err + (1.0f - confidence) * w_prop;
 
-        float p_alloc = w * allocatable;
+        float p_alloc            = w * allocatable;
         nodes[i]->assigned_power = p_alloc;
 
         /* 悬空轮保护: 速度已接近目标的电机不抢占接地轮功率 */
-        if (errRad[i] < IDLE_WHEEL_ERR_RAD && p_alloc > cmdPow[i])
-            p_alloc = cmdPow[i];
+        if (s_errRad[i] < IDLE_WHEEL_ERR_RAD && p_alloc > s_cmdPow[i]) p_alloc = s_cmdPow[i];
 
         /* 反解扭矩: k2·τ² + Ω·τ + (k1|Ω| + k3 - p_alloc) = 0 */
-        float Omega  = omega[i];
+        float Omega  = s_omega[i];
         float a_coef = nodes[i]->param.k2;
         float b_coef = Omega;
         float c_coef = nodes[i]->param.k1 * ABS(Omega) + nodes[i]->param.k3 - p_alloc;
@@ -124,9 +124,7 @@ static void limit_group(PC_Node_t **nodes, uint8_t N, float max_power, float *cm
         float tau_new;
         if (a_coef < 1e-8f)
         {
-            tau_new = (ABS(Omega) > 1e-5f)
-                          ? (p_alloc - nodes[i]->param.k1 * ABS(Omega) - nodes[i]->param.k3) / Omega
-                          : 0.0f;
+            tau_new = (ABS(Omega) > 1e-5f) ? (p_alloc - nodes[i]->param.k1 * ABS(Omega) - nodes[i]->param.k3) / Omega : 0.0f;
         }
         else
         {
@@ -140,11 +138,11 @@ static void limit_group(PC_Node_t **nodes, uint8_t N, float max_power, float *cm
                 float sqrt_delta = sqrtf(delta);
                 float root1      = (-b_coef + sqrt_delta) / (2.0f * a_coef);
                 float root2      = (-b_coef - sqrt_delta) / (2.0f * a_coef);
-                tau_new = (m->controller.output_torque >= 0.0f) ? root1 : root2;
+                tau_new          = (m->controller.output_torque >= 0.0f) ? root1 : root2;
             }
         }
 
-        tau_new = CLAMP(tau_new, -m->info.max_torque, m->info.max_torque);
+        tau_new                     = CLAMP(tau_new, -m->info.max_torque, m->info.max_torque);
         m->controller.output_torque = tau_new;
     }
 }

@@ -55,7 +55,7 @@ typedef struct
     Offline_Device *offline_dev;
 } Module_WT606_Device_t;
 
-void Module_WT606_Init(void);
+int Module_WT606_Init(void);
 
 const Module_WT606_Device_t *Module_WT606_Get(void);
 

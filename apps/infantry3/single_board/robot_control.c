@@ -32,22 +32,27 @@ static void robot_control_task(ULONG thread_input)
         /* 遥控器控制输入 */
         RemoteControlSet(&chassis_cmd, &shoot_cmd, &gimbal_cmd);
 
-                /* 云台控制 */
-        gimbal_func(&gimbal_cmd, &yaw_ecd);
+        /* 云台控制 */
+        const uint8_t yaw_ecd_valid = gimbal_func(&gimbal_cmd, &yaw_ecd);
         /* 发射机构控制 */
         shoot_func(&shoot_cmd);
         /* 底盘控制 */
-        chassis_cmd.offset_angle = CalcOffsetAngle(yaw_ecd) * 360.0f / 8191.0f;
-        chassis_cmd.vx           = chassis_cmd.vx * CHASSIS_MAX_SPEED_MPS;
-        chassis_cmd.vy           = chassis_cmd.vy * CHASSIS_MAX_SPEED_MPS;
-        chassis_cmd.wz           = chassis_cmd.wz * CHASSIS_MAX_SPEED_MPS;
+        // yaw 掉线时 offset_angle 是失效角度, 直接停机而不是朝它死跟
+        chassis_cmd.offset_angle = yaw_ecd_valid ? CalcOffsetAngle(yaw_ecd) * 360.0f / 8191.0f : 0;
+        if (!yaw_ecd_valid)
+        {
+            chassis_cmd.chassis_mode = chassis_zero_force;
+        }
+        chassis_cmd.vx = chassis_cmd.vx * CHASSIS_MAX_SPEED_MPS;
+        chassis_cmd.vy = chassis_cmd.vy * CHASSIS_MAX_SPEED_MPS;
+        chassis_cmd.wz = chassis_cmd.wz * CHASSIS_MAX_SPEED_MPS;
         chassis_func(&chassis_cmd);
 
         tx_thread_sleep(2);
     }
 }
 
-void robot_control_init(void)
+int robot_control_init(void)
 {
     UINT status;
 
@@ -56,20 +61,23 @@ void robot_control_init(void)
     if (ins == NULL)
     {
         LOG_E("ins is null");
-        return;
+        return -1;
     }
 
-    gimbal_init();
-    shoot_init();
-    chassis_init();
+    if (gimbal_init() != 0 || shoot_init() != 0 || chassis_init() != 0)
+    {
+        return -1;
+    }
 
     status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0, robot_control_thread_stack, 1024, 30, 30,
                               TX_NO_TIME_SLICE, TX_AUTO_START);
     if (status != TX_SUCCESS)
     {
         LOG_E("robot_control_task failed!");
-        return;
+        return -1;
     }
 
     LOG_I("robot_control init success!");
+
+    return 0;
 }

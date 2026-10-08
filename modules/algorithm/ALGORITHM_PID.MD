@@ -62,7 +62,7 @@ typedef struct
     PID_Improvement_e Improve;
     float             IntegralLimit; // 积分限幅
     float             CoefA;         // 变速积分 For Changing Integral
-    float             CoefB;         // 变速积分 ITerm = Err*((A-abs(err)+B)/A)  when B<|err|<A+B
+    float             CoefB;         // 变速积分 ITerm = Err*((A-fabsf(err)+B)/A)  when B<|err|<A+B
     float             Output_LPF_RC; // 输出滤波器 RC = 1/omegac
     float             Derivative_LPF_RC; // 微分滤波器系数
   
@@ -141,11 +141,14 @@ float PIDCalculate(PIDInstance *pid, float measure, float ref);
 - 周期调用：必须确保 PIDCalculate() 被周期性调用，持续计算输出。 
 - 依赖模块：本模块依赖 BSP_DWT (获取时间戳)。 
 - 变速积分系数：`CoefA` 必须为正数，代表积分衰减的区间长度；`CoefB` 为开始衰减的误差阈值。
+- 浮点绝对值用 `fabsf`，不要用 `abs`
 
 ---
 ## 6. 常见问题排查
 - 问题：pid输出为0 
     - 排查：`PIDInstance`类型的实例中，`ERRORHandler`是否为`PID_ERROR_NONE`
+- 问题：输出跳到极大值或 NaN
+    - 排查：`Iout` 是否被 NaN 污染（微分在 `dt=0` 时除零），或电机反馈本身是 NaN/Inf
 
 ---
 
@@ -167,9 +170,3 @@ PIDInit(&speed_pid, &config);
 // 3. 计算输出
 float output = PIDCalculate(&speed_pid, fb_speed, set_speed);
 ```
----
-
-## 7. 版本历史
-
-### v1.0 (2026-02-06) 
-    - 初始版本

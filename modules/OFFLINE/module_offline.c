@@ -168,9 +168,9 @@ static void offline_detect_task_entry(ULONG arg)
     }
 }
 
-void Module_Offline_init(void)
+int Module_Offline_init(void)
 {
-    if (g_initialized) return;
+    if (g_initialized) return 0;
 
     g_device_list  = NULL;
     g_silent_error = false;
@@ -182,7 +182,7 @@ void Module_Offline_init(void)
                          OFFLINE_TASK_PRIORITY, TX_NO_TIME_SLICE, TX_AUTO_START) != TX_SUCCESS)
     {
         LOG_E("Failed to create offline detect task");
-        return;
+        return -1;
     }
 
 #if OFFLINE_WATCHDOG_ENABLE
@@ -197,6 +197,8 @@ void Module_Offline_init(void)
 
     g_initialized = true;
     LOG_I("Offline module initialized");
+
+    return 0;
 }
 
 Offline_Device *Module_Offline_register(const Offline_Init_config_t *init)

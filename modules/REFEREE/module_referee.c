@@ -148,7 +148,7 @@ static void referee_task_entry(ULONG arg)
     }
 }
 
-void Module_Referee_Init()
+int Module_Referee_Init(void)
 {
     UART_Device_init_config config = {
         .huart = &REFEREE_UART, .expected_rx_len = 0, .rx_buf = rx_buffer, .rx_buf_size = 1024, .tx_mode = UART_MODE_DMA, .rx_mode = UART_MODE_DMA};
@@ -156,14 +156,14 @@ void Module_Referee_Init()
     if (module_referee.uart_dev == NULL)
     {
         LOG_E("uart device init error");
-        return;
+        return -1;
     }
     Offline_Init_config_t offlineconfig = {.name = "referee", .beep_times = 10, .enable = REFEREE_OFFLINE_ENABLE, .timeout_ms = 100};
     module_referee.offline_dev          = Module_Offline_register(&offlineconfig);
     if (module_referee.offline_dev == NULL)
     {
         LOG_E("offline device register error");
-        return;
+        return -1;
     }
 
     /* 创建裁判系统数据接收线程 */
@@ -172,12 +172,14 @@ void Module_Referee_Init()
     if (status != TX_SUCCESS)
     {
         LOG_E("thread create error: %u", status);
-        return;
+        return -1;
     }
 
     module_referee.initialized = 1;
 
     LOG_I("module referee initialized");
+
+    return 0;
 }
 
 /* 根据 robot_id 获取自身 client ID */

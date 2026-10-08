@@ -9,7 +9,7 @@
 
 #include "chassis_func.h"
 
-void chassis_init(void) { /* TODO: 初始化底盘电机 */ }
+int chassis_init(void) { /* TODO: 初始化底盘电机 */ return 0; }
 
 void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
 {

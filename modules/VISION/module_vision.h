@@ -51,8 +51,9 @@ typedef struct
 
 /**
  * @brief 初始化视觉模块
+ * @return 0 成功 / -1 失败
  */
-void Module_Vision_Init(void);
+int Module_Vision_Init(void);
 
 /**
  * @brief 发送数据包到上位机
@@ -63,7 +64,7 @@ void Module_Vision_Send(const SendPacket *packet, uint32_t timeout);
 
 /**
  * @brief 接收上位机数据包
- * @return 有效包指针, 无新数据时返回 NULL
+ * @return 最近一帧有效包的指针
  */
 ReceivePacket *Module_Vision_Receive(void);
 

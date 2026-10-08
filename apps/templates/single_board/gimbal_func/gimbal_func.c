@@ -9,9 +9,10 @@
 
 #include "gimbal_func.h"
 
-void gimbal_init(void)
+int gimbal_init(void)
 {
     /* TODO: 初始化云台电机 */
+    return 0;
 }
 
 void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)

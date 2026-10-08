@@ -17,7 +17,7 @@ static void can_supercap_callback(Can_Device *dev, const uint8_t *data, uint8_t 
     }
 }
 
-void Module_SuperCap_Init(void)
+int Module_SuperCap_Init(void)
 {
     Can_Device_Init_Config_s board_com_init = {
         .hcan        = SUPERCAP_CAN,
@@ -30,19 +30,21 @@ void Module_SuperCap_Init(void)
     if (module_supercap.device == NULL)
     {
         LOG_E("can device init failed");
-        return;
+        return -1;
     }
     Offline_Init_config_t offline_manage_init = {.name = "supercap", .timeout_ms = 500, .beep_times = 10, .enable = SUPERCAP_OFFLINE_ENABLE};
     module_supercap.offline_dev               = Module_Offline_register(&offline_manage_init);
     if (module_supercap.offline_dev == NULL)
     {
         LOG_E("offline device init failed");
-        return;
+        return -1;
     }
 
     module_supercap.initialized = 1;
 
     LOG_I("module_supercap init finished");
+
+    return 0;
 }
 
 void Module_SuperCap_Send(const SuperCap_Send_t *data)

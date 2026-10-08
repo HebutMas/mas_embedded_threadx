@@ -49,7 +49,7 @@ typedef struct
  * @brief 初始化 BMI088
  * @return
  */
-void Module_BMI088_init(void);
+int Module_BMI088_init(void);
 
 /**
  * @brief 获取设备指针

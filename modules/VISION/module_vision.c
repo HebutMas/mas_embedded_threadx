@@ -18,7 +18,10 @@
 #define LOG_LVL LOG_LVL_INFO
 #include "ulog_def.h"
 
-static ReceivePacket              rx_packet;
+/* 双缓冲区 */
+static ReceivePacket              rx_packet[2]; // 双缓冲区
+static volatile uint32_t          rx_idx;       // 正在写的槽
+static ReceivePacket              rx_snapshot;  // 接收快照
 static Offline_Device            *offline_dev = NULL;
 static TX_THREAD                  vision_thread;
 APPS_STACK_SECTION static uint8_t vision_thread_stack[VISION_TASK_STACK_SIZE];
@@ -34,13 +37,18 @@ static void vision_thread_entry(ULONG arg)
     while (1)
     {
         int ret = cdc_acm_recv(buf, sizeof(buf), &rx_len, TX_WAIT_FOREVER);
-        if (ret <= 0) continue;
+        if (ret <= 0)
+        {
+            tx_thread_sleep(1);
+            continue;
+        }
 
         for (uint32_t i = 0; i + VISION_FRAME_RX_SIZE <= rx_len; i++)
         {
             if (buf[i] == VISION_RX_HEADER && Verify_CRC16_Check_Sum(&buf[i], VISION_FRAME_RX_SIZE))
             {
-                memcpy(&rx_packet, &buf[i + 1], sizeof(ReceivePacket));
+                rx_packet[rx_idx] = *((const ReceivePacket *)&buf[i + 1]);
+                rx_idx ^= 1; 
                 Module_Offline_device_update(offline_dev);
                 break;
             }
@@ -50,14 +58,14 @@ static void vision_thread_entry(ULONG arg)
 
 /* 对外函数 */
 
-void Module_Vision_Init(void)
+int Module_Vision_Init(void)
 {
     Offline_Init_config_t offlineconfig = {.name = "minipc", .beep_times = 10, .enable = VISION_OFFLINE_ENABLE, .timeout_ms = 100};
     offline_dev                         = Module_Offline_register(&offlineconfig);
     if (offline_dev == NULL)
     {
         LOG_E("offline device register error");
-        return;
+        return -1;
     }
 
     UINT status = tx_thread_create(&vision_thread, "vision_thread", vision_thread_entry, 0, vision_thread_stack, VISION_TASK_STACK_SIZE,
@@ -65,10 +73,12 @@ void Module_Vision_Init(void)
     if (status != TX_SUCCESS)
     {
         LOG_E("thread create failed");
-        return;
+        return -1;
     }
 
     LOG_I("Vision module initialized");
+
+    return 0;
 }
 
 void Module_Vision_Send(const SendPacket *packet, uint32_t timeout)
@@ -81,7 +91,11 @@ void Module_Vision_Send(const SendPacket *packet, uint32_t timeout)
     cdc_acm_send(frame, sizeof(frame), timeout);
 }
 
-ReceivePacket *Module_Vision_Receive(void) { return &rx_packet; }
+ReceivePacket *Module_Vision_Receive(void)
+{
+    rx_snapshot = rx_packet[rx_idx ^ 1u];
+    return &rx_snapshot;
+}
 
 uint8_t Module_Vision_Get_offline_state(void)
 {

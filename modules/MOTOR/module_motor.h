@@ -25,6 +25,6 @@
 /**
  * @brief 初始化电机模块
  */
-void Module_Motor_Init(void);
+int Module_Motor_Init(void);
 
 #endif /* _MODULE_MOTOR_H_ */

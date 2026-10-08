@@ -9,7 +9,10 @@
 
 void APP_Init(void)
 {
-    robot_control_init();
+    if (robot_control_init() != 0)
+    {
+        LOG_E_LOCK("APP_Init failed");
+    }
 
     LOG_I("APP init finished");
 }

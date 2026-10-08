@@ -69,7 +69,7 @@ TX kfifo 满时自动丢弃最老消息，保证最新数据总能入队。
 ## API 接口说明
 
 ```c
-void BSP_CAN_TaskInit(void);
+int BSP_CAN_TaskInit(void);
 ```
 
 ```c
