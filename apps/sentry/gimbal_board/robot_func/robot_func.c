@@ -1,6 +1,6 @@
 #include "robot_func.h"
 #include "module_remote.h"
-#include "module_vision.h"
+#include "module_pccomm.h"
 #include "module_offline.h"
 #include "module_ins.h"
 #include <stdint.h>
@@ -107,14 +107,14 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
 }
 
 void gimbal_auto_func(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_Ctrl, Gimbal_Ctrl_Cmd_t *Gimbal_Ctrl, const Ins_t *Ins,
-                      const ReceivePacket *receive_packet)
+                      const ReceivePacket *receive_packet, const NavPacket *nav_packet)
 {
     if (Gimbal_Ctrl == NULL || Gimbal_Ctrl->gimbal_mode != gimbal_auto_mode)
     {
         return;
     }
     // 检查minipc离线状态
-    if (Module_Vision_Get_offline_state() == STATE_OFFLINE)
+    if (Module_PCComm_Get_offline_state() == STATE_OFFLINE)
     {
         // 离线停止搜索
         Gimbal_Ctrl->auto_search = 2;
@@ -145,5 +145,17 @@ void gimbal_auto_func(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
         // 进入搜索模式
         Gimbal_Ctrl->auto_search = 1;
         Shoot_Ctrl->load_mode    = load_stop;
+    }
+
+    /* 导航 */
+    if (nav_packet != NULL && nav_packet->nav_state == 1)
+    {
+        Chassis_Ctrl->vx = nav_packet->vx;
+        Chassis_Ctrl->vy = -nav_packet->vy;
+    }
+    else
+    {
+        Chassis_Ctrl->vx = 0.0f;
+        Chassis_Ctrl->vy = 0.0f;
     }
 }

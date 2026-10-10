@@ -8,7 +8,7 @@
 
 #include "robot_control.h"
 #include "module_ins.h"
-#include "module_vision.h"
+#include "module_pccomm.h"
 #include "tx_api.h"
 #include "bsp_def.h"
 #include "<robot>_def.h" /* TODO: 改为 <你的机器人>_def.h */
@@ -67,8 +67,8 @@ static void robot_control_task(ULONG thread_input)
         send_packet.q[1] = ins->q[1];
         send_packet.q[2] = ins->q[2];
         send_packet.q[3] = ins->q[3];
-        Module_Vision_Send(&send_packet, TX_NO_WAIT);
-        receive_packet = Module_Vision_Receive();
+        Module_PCComm_Send(&send_packet, TX_NO_WAIT);
+        receive_packet = Module_PCComm_Receive();
 
         /* ── 云台控制 ── */
         gimbal_func(&gimbal_cmd, &yaw_ecd);
@@ -101,7 +101,7 @@ int robot_control_init(void)
 
     if (gimbal_init() != 0 || shoot_init() != 0 || chassis_init() != 0)
     {
-        return -1; 
+        return -1;
     }
 
     status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0, robot_control_thread_stack, 1024, 30, 30,
