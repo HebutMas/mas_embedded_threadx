@@ -11,7 +11,7 @@
 #include "robot_control.h"
 #include "module_boardcomm.h"
 #include "module_ins.h"
-#include "module_vision.h"
+#include "module_pccomm.h"
 #include "tx_api.h"
 #include "bsp_def.h"
 #include "<robot>_def.h" /* TODO: 改为 <你的机器人>_def.h */
@@ -52,13 +52,13 @@ static void robot_control_task(ULONG thread_input)
 
         /* ── 虚拟串口 (视觉通信) ──
          * 使用底盘板传回的裁判系统数据判断红蓝方 */
-        send_packet.mode  = 1 - chassis_upload_data.robot_color;
+        send_packet.mode = 1 - chassis_upload_data.robot_color;
         send_packet.q[0] = ins->q[0];
         send_packet.q[1] = ins->q[1];
         send_packet.q[2] = ins->q[2];
         send_packet.q[3] = ins->q[3];
-        Module_Vision_Send(&send_packet, TX_NO_WAIT);
-        receive_packet = Module_Vision_Receive();
+        Module_PCComm_Send(&send_packet, TX_NO_WAIT);
+        receive_packet = Module_PCComm_Receive();
 
         /* ── 云台控制 ── */
         const uint8_t yaw_ecd_valid = gimbal_func(&gimbal_cmd, &yaw_ecd);
@@ -68,9 +68,9 @@ static void robot_control_task(ULONG thread_input)
 
         /* ── 板间通讯: 云台板 → 底盘板 ──
          * 速度比例 (-1.0~+1.0) → int8 (-10~+10) */
-        chassis_send_cmd.vx = (int8_t)(chassis_cmd.vx * 10.0f);
-        chassis_send_cmd.vy = (int8_t)(chassis_cmd.vy * 10.0f);
-        chassis_send_cmd.wz = (int8_t)(chassis_cmd.wz * 10.0f);
+        chassis_send_cmd.vx           = (int8_t)(chassis_cmd.vx * 10.0f);
+        chassis_send_cmd.vy           = (int8_t)(chassis_cmd.vy * 10.0f);
+        chassis_send_cmd.wz           = (int8_t)(chassis_cmd.wz * 10.0f);
         chassis_send_cmd.offset_angle = yaw_ecd_valid ? CalcOffsetAngle((float)yaw_ecd) : 0;
         chassis_send_cmd.chassis_mode = yaw_ecd_valid ? chassis_cmd.chassis_mode : chassis_zero_force;
         Module_BoardComm_Send((uint8_t *)&chassis_send_cmd, sizeof(GimbalToChassis_cmd_t));

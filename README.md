@@ -61,7 +61,7 @@ mas_embedded_threadx/
 │   ├── INS/                       # 惯性导航系统
 │   ├── REFEREE/                   # 裁判系统通信
 │   ├── MOTOR/                     # 电机控制
-│   ├── VISION/                    # 视觉通信模块
+│   ├── PCCOMM/                    # 上位机通信模块
 │   ├── BOARDCOMM/                 # 板间通信
 │   ├── SuperCap/                  # 超级电容管理
 │   ├── WT606/                     # WT606 模块

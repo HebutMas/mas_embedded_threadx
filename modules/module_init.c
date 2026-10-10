@@ -32,8 +32,8 @@
 #if MODULE_MOTOR
 #include "module_motor.h"
 #endif
-#if MODULE_VISION
-#include "module_vision.h"
+#if MODULE_PCCOMM
+#include "module_pccomm.h"
 #endif
 #if MODULE_BOARDCOMM
 #include "module_boardcomm.h"
@@ -80,8 +80,8 @@ void MODULE_Init(void)
 #if MODULE_MOTOR
     ok &= Module_Motor_Init() == 0;
 #endif
-#if MODULE_VISION
-    ok &= Module_Vision_Init() == 0;
+#if MODULE_PCCOMM
+    ok &= Module_PCComm_Init() == 0;
 #endif
 #if MODULE_BOARDCOMM
     ok &= Module_BoardComm_Init() == 0;
