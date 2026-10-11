@@ -25,6 +25,9 @@
 #define USBD_PID           0xFFFF
 #define USBD_MAX_POWER     100
 #define USBD_LANGID_STRING 1033
+/* iInterface 字符串索引: 串口一/串口二,用于上位机绑定串口 */
+#define USBD_STRING_AIM    0x04
+#define USBD_STRING_NAV    0x05
 
 /* 配置描述符总长度 */
 #define USB_CONFIG_SIZE    (9 + CDC_ACM_DESCRIPTOR_LEN * CDC_ACM_PORT_NUM)
@@ -38,18 +41,15 @@
 
 /* RX kfifo 缓冲区大小（2 的幂，≥ CDC_MAX_MPS） */
 #define CDC_RX_FIFO_SIZE 1024
-/* 单次发送缓冲大小（一次多包发送的最大帧长） */
-#define CDC_TX_BUF_SIZE  1024
-
 /* USB 描述符 */
 
 static const uint8_t device_descriptor[] = {USB_DEVICE_DESCRIPTOR_INIT(USB_2_0, 0xEF, 0x02, 0x01, USBD_VID, USBD_PID, 0x0100, 0x01)};
 
 static const uint8_t config_descriptor[] = {
     USB_CONFIG_DESCRIPTOR_INIT(USB_CONFIG_SIZE, 0x02 * CDC_ACM_PORT_NUM, 0x01, USB_CONFIG_BUS_POWERED, USBD_MAX_POWER),
-    CDC_ACM_DESCRIPTOR_INIT(0x00, CDC0_INT_EP, CDC0_OUT_EP, CDC0_IN_EP, CDC_MAX_MPS, 0x02),
+    CDC_ACM_DESCRIPTOR_INIT(0x00, CDC0_INT_EP, CDC0_OUT_EP, CDC0_IN_EP, CDC_MAX_MPS, USBD_STRING_AIM),
 #if CDC_ACM_PORT_NUM > 1
-    CDC_ACM_DESCRIPTOR_INIT(0x02, CDC1_INT_EP, CDC1_OUT_EP, CDC1_IN_EP, CDC_MAX_MPS, 0x02),
+    CDC_ACM_DESCRIPTOR_INIT(0x02, CDC1_INT_EP, CDC1_OUT_EP, CDC1_IN_EP, CDC_MAX_MPS, USBD_STRING_NAV),
 #endif
 };
 
@@ -63,6 +63,8 @@ static const char *string_descriptors[] = {
     "mas_embedded",             /* 制造商 */
     "CDC ACM Device",           /* 产品名称 */
     "000000000001",             /* 序列号 */
+    "PCCOMM-AIM",               /* 串口一 iInterface */
+    "PCCOMM-NAV",               /* 串口二 iInterface */
 };
 
 /* 描述符回调 */
@@ -117,7 +119,7 @@ struct cdc_acm_port
 };
 
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t cdc_read_buffer[CDC_ACM_PORT_NUM][CDC_RX_FIFO_SIZE];
-USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t cdc_write_buffer[CDC_ACM_PORT_NUM][CDC_TX_BUF_SIZE];
+USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t cdc_write_buffer[CDC_ACM_PORT_NUM][CDC_MAX_MPS];
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t cdc_out_ep_buffer[CDC_ACM_PORT_NUM][CDC_MAX_MPS];
 
 static struct cdc_acm_port cdc_ports[CDC_ACM_PORT_NUM] = {
@@ -264,7 +266,7 @@ void cdc_acm_init(uint8_t busid, uintptr_t reg_base)
 
 int cdc_acm_send(uint8_t port, const uint8_t *data, uint32_t len, uint32_t timeout)
 {
-    if (port >= CDC_ACM_PORT_NUM || !data || len == 0 || len > CDC_TX_BUF_SIZE)
+    if (port >= CDC_ACM_PORT_NUM || !data || len == 0 || len > CDC_MAX_MPS)
     {
         return -1;
     }

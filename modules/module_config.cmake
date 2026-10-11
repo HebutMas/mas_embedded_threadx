@@ -64,7 +64,6 @@ set(BOARDCOMM_OFFLINE_ENABLE 1)     # 离线检测开启
 set(PCCOMM_TASK_STACK_SIZE   1024)   # 任务栈大小
 set(PCCOMM_TASK_PRIORITY     10)     # 任务优先级
 set(PCCOMM_OFFLINE_ENABLE    1)      # 离线检测开启
-set(PCCOMM_LOOPBACK_TEST     1)      # 1=大包回环测试模式
 
 # LORA 默认参数(塔石 L33 LoRa 透传; 默认不启用)
 # 注: LORA 默认不在 MODULES_* 列表中(默认不启用)。启用兵种需在自己的 robot.cmake:

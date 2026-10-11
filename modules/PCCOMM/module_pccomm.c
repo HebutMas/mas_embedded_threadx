@@ -31,58 +31,6 @@ static Offline_Device            *offline_dev = NULL;
 static TX_THREAD                  pccomm_thread;
 APPS_STACK_SECTION static uint8_t pccomm_thread_stack[PCCOMM_TASK_STACK_SIZE];
 
-#if PCCOMM_LOOPBACK_TEST
-/* 大包回环测试: 帧格式 = [len(2,小端)][payload], 按长度重组后整帧一次发回 */
-static uint8_t  loopback_buf[CDC_ACM_PORT_NUM][1024 + 2];
-static uint32_t loopback_len[CDC_ACM_PORT_NUM];
-
-static void loopback_thread_entry(ULONG arg)
-{
-    uint8_t tmp[256];
-
-    while (1)
-    {
-        int got = 0;
-
-        for (uint8_t port = 0; port < CDC_ACM_PORT_NUM; port++)
-        {
-            uint32_t rx_len;
-            while (cdc_acm_recv(port, tmp, sizeof(tmp), &rx_len, TX_NO_WAIT) > 0)
-            {
-                got = 1;
-                if (loopback_len[port] + rx_len > sizeof(loopback_buf[0]))
-                {
-                    loopback_len[port] = 0;
-                }
-                memcpy(&loopback_buf[port][loopback_len[port]], tmp, rx_len);
-                loopback_len[port] += rx_len;
-            }
-            while (loopback_len[port] >= 2)
-            {
-                uint32_t flen = (uint32_t)loopback_buf[port][0] | ((uint32_t)loopback_buf[port][1] << 8);
-                if (flen > sizeof(loopback_buf[0]) - 2)
-                {
-                    loopback_len[port] = 0;
-                    break;
-                }
-                if (loopback_len[port] < flen + 2)
-                {
-                    break;
-                }
-                cdc_acm_send(port, loopback_buf[port], flen + 2, 5);
-                memmove(loopback_buf[port], &loopback_buf[port][flen + 2], loopback_len[port] - flen - 2);
-                loopback_len[port] -= flen + 2;
-            }
-        }
-
-        if (!got)
-        {
-            tx_thread_sleep(1);
-        }
-    }
-}
-#endif
-
 static void pccomm_thread_entry(ULONG arg)
 {
     uint8_t  buf[64];
@@ -145,12 +93,8 @@ int Module_PCComm_Init(void)
         return -1;
     }
 
-    void (*entry)(ULONG) = pccomm_thread_entry;
-#if PCCOMM_LOOPBACK_TEST
-    entry = loopback_thread_entry;
-#endif
-    UINT status = tx_thread_create(&pccomm_thread, "pccomm_thread", entry, 0, pccomm_thread_stack, PCCOMM_TASK_STACK_SIZE, PCCOMM_TASK_PRIORITY,
-                                   PCCOMM_TASK_PRIORITY, TX_NO_TIME_SLICE, TX_AUTO_START);
+    UINT status = tx_thread_create(&pccomm_thread, "pccomm_thread", pccomm_thread_entry, 0, pccomm_thread_stack, PCCOMM_TASK_STACK_SIZE,
+                                   PCCOMM_TASK_PRIORITY, PCCOMM_TASK_PRIORITY, TX_NO_TIME_SLICE, TX_AUTO_START);
     if (status != TX_SUCCESS)
     {
         LOG_E("thread create failed");
@@ -164,32 +108,22 @@ int Module_PCComm_Init(void)
 
 void Module_PCComm_Send(const SendPacket *packet, uint32_t timeout)
 {
-#if PCCOMM_LOOPBACK_TEST
-    (void)packet;
-    (void)timeout;
-#else
     uint8_t frame[PCCOMM_AIM_FRAME_TX_SIZE];
 
     frame[0] = PCCOMM_AIM_TX_HEADER;
     memcpy(&frame[1], packet, sizeof(SendPacket));
     Append_CRC16_Check_Sum(frame, sizeof(frame));
     cdc_acm_send(PCCOMM_AIM_PORT, frame, sizeof(frame), timeout);
-#endif
 }
 
 void Module_PCComm_Send_Nav(const NavSendPacket *packet, uint32_t timeout)
 {
-#if PCCOMM_LOOPBACK_TEST
-    (void)packet;
-    (void)timeout;
-#else
     uint8_t frame[PCCOMM_NAV_FRAME_TX_SIZE];
 
     frame[0] = PCCOMM_NAV_TX_HEADER;
     memcpy(&frame[1], packet, sizeof(NavSendPacket));
     Append_CRC16_Check_Sum(frame, sizeof(frame));
     cdc_acm_send(PCCOMM_NAV_PORT, frame, sizeof(frame), timeout);
-#endif
 }
 
 ReceivePacket *Module_PCComm_Receive(void)

@@ -22,10 +22,6 @@
 #define PCCOMM_OFFLINE_ENABLE 1 /* 离线检测开启 */
 #endif
 
-#ifndef PCCOMM_LOOPBACK_TEST
-#define PCCOMM_LOOPBACK_TEST 0 /* 1=大包回环测试模式 */
-#endif
-
 /* 虚拟串口分配 */
 #define PCCOMM_AIM_PORT      0 /* 串口一: 自瞄 */
 #define PCCOMM_NAV_PORT      1 /* 串口二: 导航 */
