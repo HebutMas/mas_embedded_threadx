@@ -10,7 +10,8 @@
 #define _ROBOT_FUNC_H_
 
 #include "sentry_def.h"
-#include "module_pccomm.h"
+#include "module_vision.h"
+#include "module_nav.h"
 #include "module_ins.h"
 /**
  * @brief 计算相对于对齐角度的最小旋转角度，返回编码器差值
@@ -29,14 +30,18 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
 
 /**
  * @brief 根据云台控制命令和接收到的视觉数据执行自动模式下的云台控制
- * @param Chassis_Ctrl 底盘控制命令结构体指针
  * @param Shoot_Ctrl 发射机构控制命令结构体指针
  * @param Gimbal_Ctrl 云台控制命令结构体指针
  * @param Ins 姿态指针
  * @param receive_packet 接收到的视觉(自瞄)数据包指针
+ */
+void gimbal_auto_func(Shoot_Ctrl_Cmd_t *Shoot_Ctrl, Gimbal_Ctrl_Cmd_t *Gimbal_Ctrl, const Ins_t *Ins, const VisionReceivePacket *receive_packet);
+
+/**
+ * @brief 底盘自动模式下独立处理导航，导航离线或报文无效时清零平移速度
+ * @param Chassis_Ctrl 底盘控制命令结构体指针
  * @param nav_packet 接收到的导航数据包指针
  */
-void gimbal_auto_func(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_Ctrl, Gimbal_Ctrl_Cmd_t *Gimbal_Ctrl, const Ins_t *Ins,
-                      const ReceivePacket *receive_packet, const NavPacket *nav_packet);
+void nav_auto_func(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, const NavReceivePacket *nav_packet);
 
 #endif // _ROBOT_FUNC_H_

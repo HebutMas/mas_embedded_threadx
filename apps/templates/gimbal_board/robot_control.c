@@ -11,7 +11,7 @@
 #include "robot_control.h"
 #include "module_boardcomm.h"
 #include "module_ins.h"
-#include "module_pccomm.h"
+#include "module_vision.h"
 #include "tx_api.h"
 #include "bsp_def.h"
 #include "<robot>_def.h" /* TODO: 改为 <你的机器人>_def.h */
@@ -26,9 +26,9 @@
 static TX_THREAD                  robot_control_thread;
 APPS_STACK_SECTION static uint8_t robot_control_thread_stack[1024];
 
-static ReceivePacket *receive_packet = NULL;
-static SendPacket     send_packet;
-const static Ins_t   *ins = NULL;
+static VisionReceivePacket *receive_packet = NULL;
+static VisionSendPacket     send_packet;
+const static Ins_t         *ins = NULL;
 
 static Gimbal_Ctrl_Cmd_t gimbal_cmd;
 static Shoot_Ctrl_Cmd_t  shoot_cmd;
@@ -57,8 +57,8 @@ static void robot_control_task(ULONG thread_input)
         send_packet.q[1] = ins->q[1];
         send_packet.q[2] = ins->q[2];
         send_packet.q[3] = ins->q[3];
-        Module_PCComm_Send(&send_packet, TX_NO_WAIT);
-        receive_packet = Module_PCComm_Receive();
+        Module_Vision_Send(&send_packet, TX_NO_WAIT);
+        receive_packet = Module_Vision_Receive();
 
         /* ── 云台控制 ── */
         const uint8_t yaw_ecd_valid = gimbal_func(&gimbal_cmd, &yaw_ecd);

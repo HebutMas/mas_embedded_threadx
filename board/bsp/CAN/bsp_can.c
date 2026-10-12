@@ -36,7 +36,6 @@ static int8_t fdcan_config_filter(FDCAN_HandleTypeDef *hfdcan, uint32_t rx_id, u
         .FilterID2    = 0x7FF,
     };
     if (HAL_FDCAN_ConfigFilter(hfdcan, &cfg) != HAL_OK) return -1;
-    HAL_FDCAN_ConfigGlobalFilter(hfdcan, FDCAN_REJECT, FDCAN_REJECT, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE);
     if (out_bank_index) *out_bank_index = (uint8_t)cfg.FilterIndex;
     g_fdcan_filter_idx[bus_idx]++;
     return 0;
@@ -162,6 +161,12 @@ Can_Device *BSP_CAN_Device_Init(Can_Device_Init_Config_s *config)
             return NULL;
         }
 #if defined(STM32H723xx)
+        /* 全局过滤器只能在 READY 状态下配置，必须先于 Start。 */
+        if (HAL_FDCAN_ConfigGlobalFilter(config->hcan, FDCAN_REJECT, FDCAN_REJECT, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
+        {
+            LOG_E("FDCAN global filter failed");
+            return NULL;
+        }
         HAL_FDCAN_ActivateNotification(config->hcan, FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0);
         HAL_FDCAN_Start(config->hcan);
 #elif defined(STM32F407xx) || defined(STM32F105xC)

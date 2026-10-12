@@ -161,7 +161,7 @@ int gimbal_init(void)
                                         .setting_init_config =
                                             {
                                                 .algorithm_type        = CONTROL_LQR,
-                                                .feedback_reverse_flag = 1,
+                                                .feedback_reverse_flag = 0,
                                                 .angle_feedback_source = 1,
                                                 .speed_feedback_source = 1,
                                                 .loop_type             = ANGLE_LOOP,

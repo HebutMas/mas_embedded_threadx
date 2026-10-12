@@ -186,6 +186,7 @@ H7 FDCAN TX FIFO 仅 3 槽，F4 CAN 仅 3 邮箱。软件 kfifo (默认 8 槽) �
 ### 过滤器配置
 
 - **H7 FDCAN**：掩码模式，11-bit 全匹配 (`FilterID2 = 0x7FF`)，奇数 ID → FIFO1，偶数 ID → FIFO0，全局过滤器拒绝未匹配帧。
+  首个设备注册时，必须在 `HAL_FDCAN_Start` 前配置全局过滤器；启动后 HAL 处于 BUSY 状态，不允许再配置全局过滤器。配置失败则设备初始化失败。
 - **F4 CAN**：16-bit IDMASK 模式，`FilterId = rx_id << 5`，`FilterMaskId = 0x7FF << 5`。CAN1 占用 bank 0~13，CAN2 占用 bank 14~27。
 
 

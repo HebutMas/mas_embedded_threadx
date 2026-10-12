@@ -48,10 +48,12 @@ cdc_acm_send(port) ──→ memcpy(cdc_write_buffer[port]) ──→ usbd_ep_st
 
 ### 端点分配
 
-| 串口 | bulk IN | bulk OUT | INT（描述符占位） |
-|------|---------|----------|-------------------|
-| 0 | `0x81` | `0x02` | `0x83` |
-| 1 | `0x82` | `0x04` | `0x84` |
+| 串口 | iInterface | bulk IN | bulk OUT | INT（描述符占位） |
+|------|------------|---------|----------|-------------------|
+| 0 | `PCCOMM-AIM` | `0x81` | `0x02` | `0x83` |
+| 1 | `PCCOMM-NAV` | `0x82` | `0x04` | `0x84` |
+
+上位机可通过 iInterface 区分自瞄与导航串口。字符串沿用 `PCCOMM` 前缀，不表示仍使用旧 PCCOMM 模块；当前应用分别由 VISION 和 NAV 使用。两个串口共享 VID/PID `0xFFFF/0xFFFF` 和固定序列号 `000000000001`，多板连接时还需结合 USB 物理路径区分设备。
 
 ### 事件标志位
 

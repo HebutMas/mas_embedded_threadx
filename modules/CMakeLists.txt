@@ -108,11 +108,18 @@ if(MODULE_MOTOR)
     )
 endif()
 
-if(MODULE_PCCOMM)
+if(MODULE_VISION)
     list(APPEND _module_sources
-        PCCOMM/module_pccomm.c
+        VISION/module_vision.c
     )
-    list(APPEND _module_includes ${CMAKE_CURRENT_SOURCE_DIR}/PCCOMM)
+    list(APPEND _module_includes ${CMAKE_CURRENT_SOURCE_DIR}/VISION)
+endif()
+
+if(MODULE_NAV)
+    list(APPEND _module_sources
+        NAV/module_nav.c
+    )
+    list(APPEND _module_includes ${CMAKE_CURRENT_SOURCE_DIR}/NAV)
 endif()
 
 if(MODULE_BOARDCOMM)
