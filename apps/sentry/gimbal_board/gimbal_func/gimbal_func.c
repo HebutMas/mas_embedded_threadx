@@ -32,12 +32,14 @@ static float                        big_yaw_offset;
 /*内部函数*/
 static void Gimbal_PitchFeedback(DM_Motor_t *motor, float cur_angle)
 {
-    /* 重力前馈 */
-    float ff_gravity = GRAVITY_K_PITCH * cur_angle + GRAVITY_GAMMA;
+    float err        = motor->base.controller.ref - cur_angle;
+    float ff_gravity  = GRAVITY_K * cosf(cur_angle) + GRAVITY_TORQUE_BIAS;
+    float ff_friction    = FRICTION_TORQUE * tanhf(err / FRICTION_ERR_EPS);
 
-    /* 写入控制器的前馈字段，本周期 LQR 输出会自动叠加它 */
-    pitch_motor->base.controller.feedforward_torque = ff_gravity;
+    pitch_motor->base.controller.feedforward_torque = ff_gravity + ff_friction ;   
 }
+
+
 
 int gimbal_init(void)
 {

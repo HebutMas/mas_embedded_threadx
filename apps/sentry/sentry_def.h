@@ -18,8 +18,12 @@
 #define ONE_BULLET_DELTA_ANGLE         60.0f          // 发射一发弹丸拨盘转动的距离,由机械设计图纸给出
 #define NUM_PER_CIRCLE                 6              // 拨盘一圈的装载量
 
-#define GRAVITY_GAMMA 1.58f                              // 重力前馈补偿项
-#define GRAVITY_K_PITCH -0.49f                           // pitch轴重力前馈系数
+#define GRAVITY_K                 0.8f   // 重力前馈幅值 Mgl (Nm)，云台臂水平时的最大重力矩
+#define GRAVITY_TORQUE_BIAS  0.4f    // pitch 轴实测恒定负载 (Nm)
+#define FRICTION_TORQUE       0.78f  /* 库仑摩擦力矩 Nm */
+#define FRICTION_ERR_EPS      0.005f  /* 死区外平滑过渡，越大越软 */
+
+
 // clang-format on
 
 #pragma pack(1)

@@ -1,8 +1,8 @@
 /*
  * @Author: laladuduqq 17503181697@163.com
  * @Date: 2026-04-20 07:56:26
- * @LastEditors: Lancelot jishiyu20060116@163.com
- * @LastEditTime: 2026-10-12 11:31:44
+ * @LastEditors: maple0738 1573764313@qq.com
+ * @LastEditTime: 2026-10-13 17:13:09
  * @FilePath: \mas_embedded_threadx\board\bsp\bsp_init.c
  * @Description:
  */
@@ -28,7 +28,7 @@ void BSP_Init(void)
 #if defined(STM32H723xx)
     // POWER_24V 和 POWER_5V 电源使能
     HAL_GPIO_WritePin(POWER_24V_1_GPIO_Port, POWER_24V_1_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(POWER_24V_2_GPIO_Port, POWER_24V_2_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(POWER_24V_2_GPIO_Port, POWER_24V_2_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(POWER_5V_GPIO_Port, POWER_5V_Pin, GPIO_PIN_SET);
 
     BSP_DWT_Init(480);
