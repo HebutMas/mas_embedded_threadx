@@ -32,14 +32,12 @@ static float                        big_yaw_offset;
 /*内部函数*/
 static void Gimbal_PitchFeedback(DM_Motor_t *motor, float cur_angle)
 {
-    float err        = motor->base.controller.ref - cur_angle;
+    float err         = motor->base.controller.ref - cur_angle;
     float ff_gravity  = GRAVITY_K * cosf(cur_angle) + GRAVITY_TORQUE_BIAS;
-    float ff_friction    = FRICTION_TORQUE * tanhf(err / FRICTION_ERR_EPS);
+    float ff_friction = FRICTION_TORQUE * tanhf(err / FRICTION_ERR_EPS);
 
-    pitch_motor->base.controller.feedforward_torque = ff_gravity + ff_friction ;   
+    pitch_motor->base.controller.feedforward_torque = ff_gravity + ff_friction;
 }
-
-
 
 int gimbal_init(void)
 {
@@ -153,7 +151,7 @@ int gimbal_init(void)
                                         .controller_init_config =
                                             {
                                                 .other_angle_feedback_ptr = &ins->euler_rad[1],
-                                                .other_speed_feedback_ptr = &bmi088_dev->gyro[0], // c板的pitch轴角速度，根据实际选择对应角速度
+                                                .other_speed_feedback_ptr = &ins->gyro[0], // 与EKF一致的陷波及零偏补偿角速度 (rad/s)
                                                 .lqr_init =
                                                     {
                                                         .K         = {34.64101615f, 3.50167937f}, // 28.7312f,2.5974f
@@ -178,7 +176,6 @@ int gimbal_init(void)
 
     return 0;
 }
-
 
 uint8_t gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
 {

@@ -34,6 +34,8 @@ set(BMI088_TEMP_SET         35.0)   # 温度设置
 # INS 默认参数
 set(INS_TASK_STACK_SIZE     1024)   # 任务栈大小
 set(INS_TASK_PRIORITY       7)      # 任务优先级
+set(INS_NOTCH_FREQ_HZ       0)      # IMU陷波主频，0=关闭
+set(INS_NOTCH_BANDWIDTH_HZ  15)     # IMU陷波带宽 (Hz)
 
 # REFEREE 默认参数
 set(REFEREE_UART            huart1) # 串口选择

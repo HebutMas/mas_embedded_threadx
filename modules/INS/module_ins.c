@@ -27,6 +27,41 @@ static const float gravity[3] = {0.0f, 0.0f, GRAVITY_CONSTANT};
 
 /* 内部算法函数 */
 
+#if INS_NOTCH_FREQ_HZ > 0
+// TPT二阶陷波：按实际dt更新积分器，避免把调试器采样率当作INS更新率。
+static void INS_NotchFilter(float gyro[3], float accel[3], float dt)
+{
+    static float   state[6][2];
+    static uint8_t initialized;
+    if (!initialized || !isfinite(dt) || dt <= 0.0f || dt * INS_NOTCH_FREQ_HZ >= 0.45f)
+    {
+        for (uint8_t i = 0; i < 6; ++i)
+        {
+            state[i][0] = 0.0f;
+            state[i][1] = i < 3 ? gyro[i] : accel[i - 3];
+        }
+        initialized = 1;
+        return;
+    }
+
+    const float g  = tanf(PI * INS_NOTCH_FREQ_HZ * dt);
+    const float k  = tanf(PI * INS_NOTCH_BANDWIDTH_HZ * dt) * (1.0f + g * g) / g;
+    const float a1 = 1.0f / (1.0f + g * (g + k));
+    const float a2 = g * a1;
+    const float a3 = g * a2;
+    for (uint8_t i = 0; i < 6; ++i)
+    {
+        float      *input = i < 3 ? &gyro[i] : &accel[i - 3];
+        const float v3    = *input - state[i][1];
+        const float v1    = a1 * state[i][0] + a2 * v3;
+        const float v2    = state[i][1] + a2 * state[i][0] + a3 * v3;
+        state[i][0]       = 2.0f * v1 - state[i][0];
+        state[i][1]       = 2.0f * v2 - state[i][1];
+        *input -= k * v1;
+    }
+}
+#endif
+
 // 三维向量归一化
 float *Norm3d(float *v)
 {
@@ -206,9 +241,18 @@ static void ins_task_entry(ULONG arg)
             // IMU参数修正（安装误差修正）
             IMU_Param_Correction(bmi088_dev->gyro, bmi088_dev->acc);
 
+#if INS_NOTCH_FREQ_HZ > 0
+            float gyro[3], accel[3];
+            memcpy(gyro, bmi088_dev->gyro, sizeof(gyro));
+            memcpy(accel, bmi088_dev->acc, sizeof(accel));
+            INS_NotchFilter(gyro, accel, ins.dt);
+            IMU_QuaternionEKF_Update(gyro[0], gyro[1], gyro[2], accel[0], accel[1], accel[2], ins.dt);
+#else
             // 核心函数,EKF更新四元数
             IMU_QuaternionEKF_Update(bmi088_dev->gyro[0], bmi088_dev->gyro[1], bmi088_dev->gyro[2], bmi088_dev->acc[0], bmi088_dev->acc[1],
                                      bmi088_dev->acc[2], ins.dt);
+#endif
+            memcpy(ins.gyro, QEKF_INS.Gyro, sizeof(ins.gyro));
 
             // 复制四元数结果
             memcpy(ins.q, QEKF_INS.q, sizeof(QEKF_INS.q));
@@ -276,7 +320,7 @@ int Module_INS_Init(void)
     float init_quaternion[4] = {0};
     InitQuaternion(init_quaternion);
     // 初始化EKF
-    IMU_QuaternionEKF_Init(init_quaternion, 10.0f, 0.001f, 1000000.0f, 0.9996f, 0.0f);
+    IMU_QuaternionEKF_Init(init_quaternion, 10.0f, 0.001f, 1000000.0f, 0.9996f, INS_ACCEL_LPF_COEF);
     // 设置加速度低通滤波系数
     ins.AccelLPF = INS_ACCEL_LPF_COEF;
     // 初始化标志

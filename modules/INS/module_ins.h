@@ -9,12 +9,20 @@
 #ifndef INS_TASK_PRIORITY
 #define INS_TASK_PRIORITY 7 /* 检测任务优先级 */
 #endif
+#ifndef INS_NOTCH_FREQ_HZ
+#define INS_NOTCH_FREQ_HZ 0 /* 0: 关闭；由机器人配置指定振动主频 */
+#endif
+#ifndef INS_NOTCH_BANDWIDTH_HZ
+#define INS_NOTCH_BANDWIDTH_HZ 15
+#endif
 
 // INS结构体
 typedef struct
 {
     // 四元数估计值，wxyz
     float q[4];
+    // EKF预测使用的角速度：安装修正、可选陷波、在线零偏补偿后 (rad/s)
+    float gyro[3];
     // 机体坐标加速度
     float MotionAccel_b[3];
     // 绝对系加速度
