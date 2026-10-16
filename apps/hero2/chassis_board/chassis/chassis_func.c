@@ -2,7 +2,7 @@
  * @Author: 550wsleep 1329258004@qq.com
  * @Date: 2026-08-28 21:08:45
  * @LastEditors: 550wsleep 1329258004@qq.com
- * @LastEditTime: 2026-09-27 20:53:54
+ * @LastEditTime: 2026-10-14 21:14:47
  * @FilePath: \mas_embedded_threadx\apps\hero2\chassis_board\chassis\chassis_func.c
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -47,7 +47,6 @@
 #include "motor_def.h"
 #include "motor_damiao.h"
 #include "motor_dji.h"
-#include "bsp_dwt.h"
 #include "user_lib.h"
 
 #include "observer.h"
@@ -236,7 +235,6 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
     }
 
     /* ---- 控制流水线 ---- */
-    BSP_DWT_Delay(0.0002f); /* 200us */
     observer_update(joints, wheels);
     kinematics_calc();
     car_state_update(); /* 起立/平衡判据 (运动学之后) */
