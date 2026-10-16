@@ -1,3 +1,11 @@
+/*
+ * @Author: Lancelot jishiyu20060116@163.com
+ * @Date: 2026-10-14 19:51:47
+ * @LastEditors: Lancelot jishiyu20060116@163.com
+ * @LastEditTime: 2026-10-16 19:29:06
+ * @FilePath: \mas_embedded_threadx\apps\sentry\chassis_board\robot_control.c
+ * @Description:
+ */
 #include "robot_control.h"
 #include "chassis_func.h"
 #include "module_boardcomm.h"
@@ -41,7 +49,7 @@ static void robot_control_task(ULONG thread_input)
             // 板间底盘系 mm/s -> m/s；线速度已经在云台板完成坐标转换
             chassis_cmd.vx = (float)chassis_recv_cmd.vx / 1000.0f;
             chassis_cmd.vy = (float)chassis_recv_cmd.vy / 1000.0f;
-            chassis_cmd.wz = (float)chassis_recv_cmd.wz / 10.0f * CHASSIS_MAX_SPEED_MPS;
+            chassis_cmd.wz = (float)chassis_recv_cmd.wz / 10.0f;
             // 编码器差值 → 角度: ecd / 8191 * 360
             chassis_cmd.offset_angle = (float)chassis_recv_cmd.offset_angle * 360.0f / 8191.0f;
             chassis_cmd.chassis_mode = chassis_recv_cmd.chassis_mode;
@@ -63,7 +71,7 @@ int robot_control_init(void)
 
     if (chassis_init() != 0)
     {
-        return -1; 
+        return -1;
     }
 
     status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0, robot_control_thread_stack, 1024, 30, 30,

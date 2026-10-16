@@ -5,6 +5,7 @@
 #include "module_ins.h"
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
 #include "sentry_def.h"
 #include "user_lib.h"
 
@@ -151,14 +152,17 @@ void nav_auto_func(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, const NavReceivePacket *nav
         return;
     }
 
-    if (Module_Nav_Get_offline_state() == STATE_ONLINE && nav_packet != NULL && nav_packet->nav_state == 1)
+    if (Module_Nav_Get_offline_state() == STATE_ONLINE && nav_packet != NULL && nav_packet->nav_state == 1 && isfinite(nav_packet->vx) &&
+        isfinite(nav_packet->vy) && isfinite(nav_packet->w))
     {
         Chassis_Ctrl->vx = nav_packet->vx;
         Chassis_Ctrl->vy = -nav_packet->vy;
+        Chassis_Ctrl->wz = nav_packet->w;
     }
     else
     {
         Chassis_Ctrl->vx = 0.0f;
         Chassis_Ctrl->vy = 0.0f;
+        Chassis_Ctrl->wz = 0.0f;
     }
 }

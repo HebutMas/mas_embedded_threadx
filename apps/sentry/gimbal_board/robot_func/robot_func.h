@@ -38,7 +38,7 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
 void gimbal_auto_func(Shoot_Ctrl_Cmd_t *Shoot_Ctrl, Gimbal_Ctrl_Cmd_t *Gimbal_Ctrl, const Ins_t *Ins, const VisionReceivePacket *receive_packet);
 
 /**
- * @brief 底盘自动模式下独立处理导航，导航离线或报文无效时清零平移速度
+ * @brief 底盘自动模式下独立处理导航，导航离线或报文无效时清零 vx、vy、wz
  * @param Chassis_Ctrl 底盘控制命令结构体指针
  * @param nav_packet 接收到的导航数据包指针
  */

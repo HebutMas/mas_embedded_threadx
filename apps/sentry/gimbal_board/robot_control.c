@@ -102,9 +102,11 @@ static void robot_control_task(ULONG thread_input)
         VAL_LIMIT(chassis_vx, -CHASSIS_MAX_SPEED_MPS, CHASSIS_MAX_SPEED_MPS);
         VAL_LIMIT(chassis_vy, -CHASSIS_MAX_SPEED_MPS, CHASSIS_MAX_SPEED_MPS);
         // 底盘系 m/s -> 板间 mm/s，底盘端按 1:1 恢复
-        chassis_send_cmd.vx           = (int16_t)lroundf(chassis_vx * 1000.0f);
-        chassis_send_cmd.vy           = (int16_t)lroundf(chassis_vy * 1000.0f);
-        chassis_send_cmd.wz           = (int8_t)(chassis_cmd.wz * 10.0f);
+        chassis_send_cmd.vx = (int16_t)lroundf(chassis_vx * 1000.0f);
+        chassis_send_cmd.vy = (int16_t)lroundf(chassis_vy * 1000.0f);
+        float chassis_wz    = chassis_cmd.wz;
+        VAL_LIMIT(chassis_wz, -12.7f, 12.7f);
+        chassis_send_cmd.wz           = (int8_t)lroundf(chassis_wz * 10.0f);
         chassis_send_cmd.offset_angle = yaw_ecd_valid ? CalcOffsetAngle(yaw_ecd) : 0;
         chassis_send_cmd.chassis_mode = yaw_ecd_valid ? chassis_cmd.chassis_mode : chassis_zero_force;
         Module_BoardComm_Send((uint8_t *)&chassis_send_cmd, sizeof(GimbalToChassis_cmd_t));

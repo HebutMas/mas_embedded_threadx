@@ -23,7 +23,6 @@
 #define FRICTION_TORQUE       0.78f  /* 库仑摩擦力矩 Nm */
 #define FRICTION_ERR_EPS      0.005f  /* 死区外平滑过渡，越大越软 */
 
-
 // clang-format on
 
 #pragma pack(1)
@@ -94,7 +93,7 @@ typedef struct
 {
     int16_t vx;           /* 底盘系 X 速度, mm/s */
     int16_t vy;           /* 底盘系 Y 速度, mm/s */
-    int8_t  wz;           /* 旋转速度, -10 ～ +10 */
+    int8_t  wz;           /* 底盘角速度，0.1 rad/s，逆时针为正 */
     int16_t offset_angle; /* yaw偏移角度 */
     uint8_t chassis_mode; /* 底盘控制指令 (chassis_mode_e) */
 } GimbalToChassis_cmd_t;

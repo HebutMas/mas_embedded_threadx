@@ -20,6 +20,7 @@ typedef struct
 {
     float   vx;        /* 导航速度 x (m/s) */
     float   vy;        /* 导航速度 y (m/s) */
+    float   w;         /* 底盘角速度 (rad/s)，逆时针为正 */
     uint8_t nav_state; /* 0:无效, 1:有效 */
 } NavReceivePacket;
 
@@ -35,6 +36,7 @@ typedef struct
 
 #pragma pack(pop)
 
+_Static_assert(sizeof(NavReceivePacket) == 13, "NavReceivePacket must be 13 bytes");
 _Static_assert(sizeof(NavSendPacket) == 8, "NavSendPacket must be 8 bytes");
 
 /**

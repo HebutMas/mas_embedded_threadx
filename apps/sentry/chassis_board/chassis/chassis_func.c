@@ -253,20 +253,8 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
                 chassis_wz = 3;
                 break;
             case chassis_automode:
-            {
-                chassis_wz = 3;
-                // const game_status_t *game_status = (game_status_t *)Module_Referee_Get_cmd_data(CMD_ID_GAME_STATUS);
-                // if (game_status != NULL && game_status->type_progress.game_progress == 4) // 比赛中
-                // {
-                // }
-                // else
-                // {
-                //     chassis_vx = 0;
-                //     chassis_vy = 0;
-                //     chassis_wz = 0;
-                // }
+                chassis_wz = chassis_cmd->wz;
                 break;
-            }
             default:
                 break;
             }
