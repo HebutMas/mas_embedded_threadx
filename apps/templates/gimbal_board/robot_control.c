@@ -18,13 +18,14 @@
 #include "gimbal_func.h"
 #include "shoot_func.h"
 #include "robot_func.h"
+#include "power_control.h"
 
 #define LOG_TAG "app_robot_control"
 #define LOG_LVL LOG_LVL_INFO
 #include "ulog_def.h"
 
 static TX_THREAD                  robot_control_thread;
-APPS_STACK_SECTION static uint8_t robot_control_thread_stack[1024];
+APPS_STACK_SECTION static uint8_t robot_control_thread_stack[2048];
 
 static VisionReceivePacket *receive_packet = NULL;
 static VisionSendPacket     send_packet;
@@ -66,6 +67,11 @@ static void robot_control_task(ULONG thread_input)
         /* ── 发射机构控制 ── */
         shoot_func(&shoot_cmd);
 
+        /* 电机闭环 */
+        Motor_ControlAll();
+        PowerControl_Update();
+        Motor_ApplyAll();
+
         /* ── 板间通讯: 云台板 → 底盘板 ──
          * 速度比例 (-1.0~+1.0) → int8 (-10~+10) */
         chassis_send_cmd.vx           = (int8_t)(chassis_cmd.vx * 10.0f);
@@ -97,7 +103,7 @@ int robot_control_init(void)
         return -1;
     }
 
-    status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0, robot_control_thread_stack, 1024, 30, 30,
+    status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0, robot_control_thread_stack, 2048, 8, 8,
                               TX_NO_TIME_SLICE, TX_AUTO_START);
     if (status != TX_SUCCESS)
     {

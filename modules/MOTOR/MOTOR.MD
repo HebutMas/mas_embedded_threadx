@@ -2,7 +2,7 @@
 
 ## 概述
 
-电机模块是一个**面向对象风格**的电机驱动框架，基于继承和多态统一管理不同类型的电机（CAN 总线电机、UART 步进电机、PWM 舵机等）。所有电机通过全局链表注册，由一个独立的 ThreadX 任务周期性调度。
+电机模块是一个**面向对象风格**的电机驱动框架，基于继承和多态统一管理不同类型的电机（CAN 总线电机、UART 步进电机、PWM 舵机等）。所有电机通过全局链表注册，由**应用层的 500 Hz 控制线程**周期性调度
 
 ### 已支持的电机
 
@@ -43,14 +43,16 @@ Motor_Base (基类)                   ← motor_base.h
 
 ### 两阶段调度
 
-电机驱动只需实现一个 `Apply` 函数指针，由 motor task 分两阶段统一调度：
+电机驱动只需实现一个 `Apply` 函数指针，由应用层控制线程分两阶段统一调度：
 
 ```
-motor_task (2ms):
+robot_control (2ms):
   Motor_ControlAll()     控制计算 → controller.output_torque
   PowerControl_Update()  功率限制 → 覆写 output_torque 
   Motor_ApplyAll()       输出应用 → 传输层 (读取限后扭矩发帧)
 ```
+
+> 必须在`app层robot_control.c`中写这三行调用，否则电机不会输出。
 
 ### 控制算法层 (motor_algorithm.c)
 
@@ -221,7 +223,7 @@ XX_Motor_t *Motor_XX_Init(Motor_Init_Config_s *config)
 ### 注册
 
 1. `motor_def.h` 的 `Motor_Type_e` 枚举添加型号
-2. `module_motor.h` 添加 `#include "motor_xx.h"`
+2. 在使用该电机的应用侧头文件（如 `gimbal_func.h`）包含 `motor_xx.h`；模块层不再维护聚合头
 3. `CMakeLists.txt` 的 `MODULE_MOTOR` 分支添加源文件与 include
 
 ## API 接口说明
@@ -241,9 +243,6 @@ float Motor_CalculateTorque(Motor_Base *motor);
 ```c
 void Motor_Start/Stop/SetRef/ChangeFeed/OuterLoop/SetForwardTorque/SetOutputTorque(Motor_Base*, ...);
 ```
-```c
-int  Module_Motor_Init(void);
-```
 
 ## 注意事项
 - 这里的电机数据接收目前只有 CAN 的，UART 电机需自行建立 task 接收数据
@@ -257,3 +256,4 @@ int  Module_Motor_Init(void);
 | v1.1 | 2026-05-15 | 将内部指针改为const，增加前馈力矩补偿，fix：掉线失能问题 |
 | v1.2 | 2026-05-21 | 使用单向链表，方便调试 |
 | v2.0 | 2026-08-07 | 架构重构: 控制算法独立文件(PID/LQR switch 分派) + 两阶段调度 |
+| v2.1 | 2026-10-19 | 移除 motor 线程合并到app里 |

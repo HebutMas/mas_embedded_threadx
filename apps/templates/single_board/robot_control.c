@@ -16,6 +16,7 @@
 #include "shoot_func.h"
 #include "chassis_func.h"
 #include "robot_func.h"
+#include "power_control.h"
 
 #include "module_referee.h"
 #include "referee_protocol.h"
@@ -25,7 +26,7 @@
 #include "ulog_def.h"
 
 static TX_THREAD                  robot_control_thread;
-APPS_STACK_SECTION static uint8_t robot_control_thread_stack[1024];
+APPS_STACK_SECTION static uint8_t robot_control_thread_stack[2048];
 
 static VisionReceivePacket *receive_packet = NULL;
 static VisionSendPacket     send_packet;
@@ -83,6 +84,11 @@ static void robot_control_task(ULONG thread_input)
         chassis_cmd.wz           = chassis_cmd.wz * CHASSIS_MAX_SPEED_MPS;
         chassis_func(&chassis_cmd);
 
+        /* 电机闭环 */
+        Motor_ControlAll();
+        PowerControl_Update();
+        Motor_ApplyAll();
+
         tx_thread_sleep(2);
     }
 }
@@ -104,7 +110,7 @@ int robot_control_init(void)
         return -1;
     }
 
-    status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0, robot_control_thread_stack, 1024, 30, 30,
+    status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0, robot_control_thread_stack, 2048, 8, 8,
                               TX_NO_TIME_SLICE, TX_AUTO_START);
     if (status != TX_SUCCESS)
     {

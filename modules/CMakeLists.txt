@@ -87,7 +87,6 @@ if(MODULE_MOTOR)
         list(APPEND _module_sources algorithm/chassis_type.c)
     endif()
     list(APPEND _module_sources
-        MOTOR/module_motor.c
         MOTOR/motor_base.c
         MOTOR/motor_algorithm.c
         MOTOR/DJI/motor_dji.c

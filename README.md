@@ -215,6 +215,47 @@ find . -name '*.c' -o -name '*.h' | xargs clang-format -i
    - `chassis_board/` —— 底盘板
 4. 在 `apps/config.cmake` 中将新机器人加入注释说明
 
+### 任务优先级设置建议
+
+ThreadX 的优先级数值越小越高（0 最高，Idle 固定为 31）。本项目所有线程均为 `TX_NO_TIME_SLICE`：同优先级线程之间**不会相互抢占**，正在运行的线程只有在阻塞或主动让出后，调度器才会按 FIFO 选择下一个同优先级线程。因此**新增线程时不要复用下表中已有的优先级**。
+
+#### 当前优先级分配
+
+| 优先级 | 线程 | 周期 / 触发 | 
+|---|---|---|
+| 3 | CAN RX | 1 kHz | 
+| 4 | CAN TX | 500 Hz | 
+| 7 | INS | 1 kHz | 
+| 8 | robot_control | 500 Hz | 
+| 9 | WT606 | 1 kHz | 
+| 10 | VT02 / VT03 | ~10 ms | 
+| 11 | Vision | 200–500 Hz | 
+| 12 | SBUS / DT7 | 7–14 ms 帧 | 
+| 13 | NAV | <100 Hz | 
+| 14 | Referee | 实时 |
+| 15 | NRF24L01 | 10 ms | 
+| 16 | LORA / VOFA | 10–50 ms | 
+| 30（仅高于 Idle 31） | Offline Detect | 100 Hz | 
+
+#### 设置原则
+
+1. **优先级设置**。没有明确周期/超时要求的线程不应高于 9
+2. **不要同优先级**。`TX_NO_TIME_SLICE` 下同优先级不抢占，只会在阻塞时切换
+3. **阻塞线程不要设得比控制环高**。串口/USB 解析线程阻塞等事件，本身不占 CPU，提高优先级只会让它在醒来时打断控制
+4. **单板/云台板/底盘板保持一致**。同一兵种不同板型的控制线程优先级必须相同
+
+#### 电机控制循环约定
+
+启用 `MODULE_MOTOR` 的应用必须在自己的控制线程中按顺序调用：
+
+```c
+Motor_ControlAll();      /* 控制计算 */
+PowerControl_Update();   /* 功率限制 */
+Motor_ApplyAll();        /* CAN 下发 */
+```
+
+漏掉这三行会导致电机不输出；新增兵种/板型时请从 `apps/templates/<board>/robot_control.c` 复制。
+
 ### Git 工作流建议
 
 1. **分支管理**：

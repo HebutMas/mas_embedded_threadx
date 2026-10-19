@@ -29,9 +29,6 @@
 #if MODULE_SUPERCAP
 #include "module_supercap.h"
 #endif
-#if MODULE_MOTOR
-#include "module_motor.h"
-#endif
 #if MODULE_VISION
 #include "module_vision.h"
 #endif
@@ -79,9 +76,6 @@ void MODULE_Init(void)
 #endif
 #if MODULE_SUPERCAP
     ok &= Module_SuperCap_Init() == 0;
-#endif
-#if MODULE_MOTOR
-    ok &= Module_Motor_Init() == 0;
 #endif
 #if MODULE_VISION
     ok &= Module_Vision_Init() == 0;
