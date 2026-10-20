@@ -46,6 +46,7 @@ void observer_init(DM_Motor_t *motor_8009[], DJI_Motor_t *motor_3508[])
     obs.roll    = -ins->euler_rad[0];
     obs.droll   = -bmi->gyro[1];
     obs.yaw     = ins->euler_rad[2];
+    obs.dyaw    = bmi->gyro[2];         /* 机体偏航角速度 (绕上轴, 与 yaw 同号) */
     obs.initialized = 1;
 }
 
@@ -71,6 +72,7 @@ void observer_update(DM_Motor_t *motor_8009[], DJI_Motor_t *motor_3508[])
     obs.roll    = -ins->euler_rad[0];
     obs.droll   = -bmi->gyro[1];
     obs.yaw     = ins->euler_rad[2];
+    obs.dyaw    = bmi->gyro[2];         /* 机体偏航角速度 (绕上轴, 与 yaw 同号) */
 }
 
 const observer *observer_get(void)
