@@ -41,6 +41,7 @@ typedef struct
     float roll;
     float droll;
     float yaw;
+    float dyaw;
     uint8_t initialized;
 } observer;
 

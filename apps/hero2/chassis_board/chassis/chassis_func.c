@@ -54,6 +54,7 @@
 #include "kinematics.h"
 #include "car_state.h"
 #include "length_control.h"
+#include "turn_control.h"
 #include "LQR_leg.h"
 #include "leg_coor.h"
 #include "roll_control.h"
@@ -178,6 +179,7 @@ void chassis_init(void)
     roll_init();
     gas_spring_init();
     car_state_init();
+    turn_control_init();
 }
 
 void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
@@ -219,6 +221,7 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
         car_state_reset();      /* 掉线: 回起立态, 恢复后重新起立 */
         march_displacement = 0.0f;   /* 掉线: 位移目标归零 */
         observer_reset_kf_x();       /* 掉线: 位移反馈归零 (等价 luntui1 KF_x=0) */
+        turn_control_reset();        /* 掉线: 转向输出归零 (对应 luntui1 flag!=0) */
         return;
     }
 
@@ -239,6 +242,7 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
     car_state_update(); /* 起立/平衡判据 (运动学之后) */
     length_control();
 
+    turn_control_update(chassis_cmd->turn_cmd);
     target_update(chassis_cmd->body_target_dx);
 
     leg_coor_control();
@@ -260,9 +264,10 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
         // Motor_SetOutputTorque((Motor_Base *)hip_1,  0.0f);
     }
     const LQR *lqr = LQR_get();
-    if (lqr != NULL) {
-        Motor_SetOutputTorque((Motor_Base *)wheel_l,  lqr->TL);
-        Motor_SetOutputTorque((Motor_Base *)wheel_r, -lqr->TR);
+    const turn_control_t *turn = turn_control_get();
+    if (lqr != NULL && turn != NULL) {
+        Motor_SetOutputTorque((Motor_Base *)wheel_l,  lqr->TL  - turn->delta_t / 2.0f);
+        Motor_SetOutputTorque((Motor_Base *)wheel_r, -lqr->TR - turn->delta_t / 2.0f);
 
         // Motor_SetOutputTorque((Motor_Base *)wheel_l,  0.0f);
         // Motor_SetOutputTorque((Motor_Base *)wheel_r,  0.0f);

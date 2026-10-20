@@ -5,7 +5,7 @@
 typedef struct
 {
     float body_target_dx; /* 前后速度命令 m/s, 上推为正, ±2.0 */
-    float turn_cmd;       /* 转向命令 (预留) */
+    float turn_cmd;       /* 转向设定角命令 (rad), 右推为正, 满推 ±0.07 */
 } Chassis_Ctrl_Cmd_t;
 
 #endif

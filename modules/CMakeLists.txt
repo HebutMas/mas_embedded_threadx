@@ -134,6 +134,7 @@ if(MODULE_SERIAL_LEG_SOLUTION)
         algorithm/serial_leg_solution/leg_coor/leg_coor.c
         algorithm/serial_leg_solution/gas_spring/gas_spring.c
         algorithm/serial_leg_solution/car_state/car_state.c
+        algorithm/serial_leg_solution/turn_control/turn_control.c
     )
     list(APPEND _module_includes
         ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution
@@ -146,6 +147,7 @@ if(MODULE_SERIAL_LEG_SOLUTION)
         ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution/leg_coor
         ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution/gas_spring
         ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution/car_state
+        ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution/turn_control
     )
 endif()
 if(MODULE_LORA)

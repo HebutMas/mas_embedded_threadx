@@ -14,5 +14,6 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *cmd)
     cmd->body_target_dx = (float)Module_Remote_get_channel(2)
                         / (float)(SBUS_CHX_DOWN - SBUS_CHX_BIAS) * 2.0f;
     cmd->turn_cmd       = (float)Module_Remote_get_channel(1)
-                        / (float)(SBUS_CHX_DOWN - SBUS_CHX_BIAS);
+                        / (float)(SBUS_CHX_DOWN - SBUS_CHX_BIAS) * 0.07f;
+    /* 满行程 ≈ ±0.07rad ≈ ±4°; 49.19×0.07≈3.4N·m 恰在 ±3.5 限幅内 */
 }
