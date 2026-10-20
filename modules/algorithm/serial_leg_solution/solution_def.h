@@ -32,6 +32,10 @@ typedef struct
     float dx_L;
     float x_R;
     float dx_R;
+    /* 机体位移估计 (KF 流水线层, 对应 luntui1 Body.dx_nofilter / Body.dx / Body.x) */
+    float kf_dx_nofilter;   /* KF 量测输入: 轮面速度 + 腿运动学项 */
+    float kf_dx;            /* KF 滤波后机体速度 (X_KF 输出) */
+    float kf_x;             /* KF 位移积分器 (等价 luntui1 KF_x) */
     float pitch;
     float dpitch;
     float roll;

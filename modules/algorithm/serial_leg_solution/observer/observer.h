@@ -17,5 +17,6 @@
 void observer_init(DM_Motor_t *motor_8009[], DJI_Motor_t *motor_3508[]);
 void observer_update(DM_Motor_t *motor_8009[], DJI_Motor_t *motor_3508[]);
 const observer *observer_get(void);
+void observer_reset_kf_x(void);   /* 掉线轻重置, 只清位移积分器 */
 
 #endif

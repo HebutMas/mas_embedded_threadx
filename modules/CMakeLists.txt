@@ -125,6 +125,7 @@ endif()
 if(MODULE_SERIAL_LEG_SOLUTION)
     list(APPEND _module_sources
         algorithm/serial_leg_solution/observer/observer.c
+        algorithm/serial_leg_solution/observer/X_KF.c
         algorithm/serial_leg_solution/kinematics/kinematics.c
         algorithm/serial_leg_solution/LQR/LQR_leg.c
         algorithm/serial_leg_solution/VMC/VMC.c

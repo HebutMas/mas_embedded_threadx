@@ -218,6 +218,7 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
         }
         car_state_reset();      /* 掉线: 回起立态, 恢复后重新起立 */
         march_displacement = 0.0f;   /* 掉线: 位移目标归零 */
+        observer_reset_kf_x();       /* 掉线: 位移反馈归零 (等价 luntui1 KF_x=0) */
         return;
     }
 

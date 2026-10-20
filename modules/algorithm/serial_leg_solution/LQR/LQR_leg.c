@@ -63,8 +63,9 @@ void LQR_calc(float target_x, float target_dx)
     float dtheta_l = -fk_left->dtheta;
     float theta_r = -fk_right->theta;
     float dtheta_r = -fk_right->dtheta;
-    float x = -(obs->x_L + obs->x_R)/2.0f;
-    float dx = -(obs->dx_L + obs->dx_R) / 2.0f;
+    /* 位移/速度反馈换源: X_KF 滤波输出 (等价 luntui1 Body.x/Body.dx; 取负约定不变) */
+    float x = -obs->kf_x;
+    float dx = -obs->kf_dx;
 
     if (car_state_get() == STATE_BALANCE)
     {
