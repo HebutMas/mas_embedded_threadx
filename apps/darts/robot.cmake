@@ -39,15 +39,3 @@ set(REFEREE_TASK_PRIORITY   10)     # 任务优先级
 
 # SUPERCAP 默认参数
 set(SUPERCAP_CAN            BSP_CAN_HANDLE2) # CAN 句柄
-
-# WT606 默认参数
-set(WT606_UART              huart1) # 串口选择
-set(WT606_TASK_STACK_SIZE   1024)   # 任务栈大小
-set(WT606_TASK_PRIORITY     8)      # 任务优先级
-
-# MOTOR 默认参数
-set(MOTOR_TASK_STACK_SIZE   1024)   # 任务栈大小 
-set(MOTOR_TASK_PRIORITY     12)     # 任务优先级
-
-# BOARDCOMM 默认参数
-set(BOARDCOMM_CAN           BSP_CAN_HANDLE2) # CAN 句柄  

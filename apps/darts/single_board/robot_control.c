@@ -1,17 +1,16 @@
 /*
- * @Description: 单板机器人主控任务 (模板)
+ * @Description: 飞镖单板机器人主控任务
  *
- * 使用说明:
- *   1. 将 <robot>_def.h 改为你的 def 文件
- *   2. 单板模式下: gimbal + shoot + chassis 在一个 task 中控制
+ * 飞镖无底盘：gimbal (yaw=ZDT 步进 / pitch=3508) + shoot 在同一个 task 中控制。
  */
 
 #include "robot_control.h"
 #include "module_ins.h"
 #include "module_vision.h"
 #include "tx_api.h"
+#include "motor_base.h"
 #include "bsp_def.h"
-#include "darts_def.h" /* TODO: 改为 <你的机器人>_def.h */
+#include "darts_def.h"
 #include "gimbal_func.h"
 #include "shoot_func.h"
 #include "robot_func.h"
@@ -23,7 +22,7 @@
 #include "ulog_def.h"
 
 static TX_THREAD                  robot_control_thread;
-APPS_STACK_SECTION static uint8_t robot_control_thread_stack[1024];
+APPS_STACK_SECTION static uint8_t robot_control_thread_stack[2048];
 
 static VisionReceivePacket *receive_packet = NULL;
 static VisionSendPacket     send_packet;
@@ -46,6 +45,12 @@ static void robot_control_task(ULONG thread_input)
         /* 执行器先处理掉线，避免视觉通信延迟停机。 */
         shoot_func(&shoot_cmd, remote_online);
         gimbal_func(&gimbal_cmd, &yaw_ecd);
+
+        /* 电机闭环 (见 modules/MOTOR/MOTOR.MD)：模块层不再持有电机线程，
+         * 必须由 app 层每周期驱动，否则 Motor_Apply 永不执行、电机无输出。
+         * 飞镖无底盘，不参与功率控制，故不调 PowerControl_Update()。 */
+        Motor_ControlAll();
+        Motor_ApplyAll();
 
         /* ── 虚拟串口 (视觉通信) ── */
         const robot_status_t *robot_status = (robot_status_t *)Module_Referee_Get_cmd_data(CMD_ID_ROBOT_STATUS);
@@ -92,7 +97,7 @@ int robot_control_init(void)
     gimbal_init();
     shoot_init();
 
-    status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0, robot_control_thread_stack, 1024, 30, 30,
+    status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0, robot_control_thread_stack, 2048, 8, 8,
                               TX_NO_TIME_SLICE, TX_AUTO_START);
     if (status != TX_SUCCESS)
     {

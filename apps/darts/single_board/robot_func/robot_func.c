@@ -19,21 +19,6 @@
 #include <stdint.h>
 #include <string.h>
 
-int16_t CalcOffsetAngle(float getyawangle)
-{
-    float offset_ecd;
-
-    const float ECD_MAX  = 8191.0f;
-    const float ECD_HALF = 4095.5f;
-
-    offset_ecd = getyawangle - (float)YAW_CHASSIS_ALIGN_ECD;
-
-    while (offset_ecd > ECD_HALF) offset_ecd -= ECD_MAX;
-    while (offset_ecd < -ECD_HALF) offset_ecd += ECD_MAX;
-
-    return (int16_t)offset_ecd;
-}
-
 bool RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_Ctrl, Gimbal_Ctrl_Cmd_t *Gimbal_Ctrl)
 {
     if (!Chassis_Ctrl || !Shoot_Ctrl || !Gimbal_Ctrl) return false;
@@ -42,23 +27,8 @@ bool RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
 
     if (state & 0x01) /* RC 在线 */
     {
-        /* ── 底盘控制 ──
-         * CH1: vy, CH2: vx, CH4: wz
-         * 摇杆值 → 速度比例 (-1.0 ~ +1.0) */
-        Chassis_Ctrl->vx = (float)Module_Remote_get_channel(2) / (float)(SBUS_CHX_DOWN - SBUS_CHX_BIAS);
-        Chassis_Ctrl->vy = (float)Module_Remote_get_channel(1) / (float)(SBUS_CHX_DOWN - SBUS_CHX_BIAS);
-        Chassis_Ctrl->wz = (float)Module_Remote_get_channel(4) / (float)(SBUS_CHX_DOWN - SBUS_CHX_BIAS);
-
-        /* TODO: 根据遥控器拨杆自定义底盘模式切换
-         * 示例 (sentry 拨杆映射):
-         *   CH8 上: chassis_follow_gimbal_yaw
-         *   CH8 中: chassis_rotate
-         *   CH8 下: chassis_rotate_reverse
-         */
-        Chassis_Ctrl->chassis_mode = chassis_follow_gimbal_yaw;
-
         /* ── 云台控制 ──
-         * CH3: pitch, CH4: yaw。摇杆压过阈值 → 定速往该方向走, 回中即停;
+         * CH3: pitch, CH2: yaw。摇杆压过阈值 → 定速往该方向走, 回中即停;
          * 0.002 = 控制周期 2ms (robot_control.c 的 tx_thread_sleep(2)) */
         Gimbal_Ctrl->gimbal_mode = gimbal_gyro_mode;
 

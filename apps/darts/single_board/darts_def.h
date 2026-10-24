@@ -1,15 +1,12 @@
 /*
- * @Description: 机器人定义模板
+ * @Description: 飞镖 (darts) 机器人定义
  *
- * 使用说明:
- *   1. 复制本文件到你的机器人目录, 改名为 <机器人名>_def.h (如 hero_def.h)
- *   2. 修改机械参数 (角度、速度、减速比等)
- *   3. 如需要单板/双板模式, 参考 sentry 添加板间通讯结构体
- *   4. 如底盘模式与模板不同, 修改 chassis_mode_e 枚举
+ * 注意: 头保护必须区别于 apps/robot_def.h.in 生成的 robot_def.h，
+ *       两者同名会在同一编译单元内静默吞掉 CURRENT_ROBOT / ROBOT_TYPE。
  */
 
-#ifndef _ROBOT_DEF_H_
-#define _ROBOT_DEF_H_
+#ifndef _DARTS_DEF_H_
+#define _DARTS_DEF_H_
 
 #include <stdint.h>
 
@@ -17,7 +14,6 @@
  * 机械参数 (按实际机械图纸修改)
  * ================================================================ */
 // clang-format off
-  #define YAW_CHASSIS_ALIGN_ECD     2048      /* 云台与底盘对齐的电机编码器值, 机械改动后需修改 */
 
 // ── 3508 同步带拉簧轴 (电机反馈 total_angle 是转子侧, 输出侧=同步轮, 差 gear_ratio(19) 倍) ──
 #define FRICTION_PULLEY_RADIUS_MM 17.0f     /* 同步轮半径, 行程/前馈都按带直线行程 (mm) 给 */
@@ -187,4 +183,4 @@ _Static_assert(sizeof(ChassisToGimbal_referee_t) == 8, "must be 8 bytes");
 
 #endif /* 板间通讯 */
 
-#endif /* _ROBOT_DEF_H_ */
+#endif /* _DARTS_DEF_H_ */
