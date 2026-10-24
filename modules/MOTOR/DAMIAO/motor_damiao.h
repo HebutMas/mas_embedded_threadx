@@ -74,6 +74,7 @@ typedef struct
     DM_Motor_Measure_s       measure; /* 达妙测量数据 */
     uint32_t                 mode_type;
     const DM_Motor_Params_t *params; /* 电机参数配置指针 */
+    uint8_t                  startup_enable_pending; /* 首次有效反馈到达后，补发一次硬件清错和使能 */
 } DM_Motor_t;
 
 /**
