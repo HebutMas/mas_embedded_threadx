@@ -2,16 +2,16 @@
 
 ## 概述
 
-BSP CAN 是基于 STM32 HAL 库的 CAN 总线驱动层，采用 **kfifo 缓冲 + 独立后台任务 + 接收回调** 异步架构，支持 STM32H723 (FDCAN) 和 STM32F407 (经典 CAN) 双平台。
+BSP CAN 是基于 STM32 HAL 库的 CAN 总线驱动层，采用 **缓冲队列（mpmc） + 独立后台任务 + 接收回调** 异步架构，支持 STM32H723 (FDCAN) 和 STM32F407 (经典 CAN) 双平台，标准帧与扩展帧都能走完整的注册-过滤-分发-队列链路。
 
 ## 架构设计
 
 ### 数据流
 
 ```
-┌──────────┐   HAL IRQ (事件标志)  ┌──────────────┐   kfifo(SPSC)   ┌──────────────┐
-│ 硬件     │ ───────────────────▶  │ ISR 回调     │ ──put─────────▶ │ CAN RX Task  │
-│ RX FIFO  │   drain→put→set_evt   │ GetRxMsg→put │                 │ get→匹配→回调│
+┌──────────┐   HAL IRQ (事件标志)  ┌──────────────┐  mpmc(无锁)     ┌──────────────┐
+│ 硬件     │ ───────────────────▶  │ ISR 回调     │ ──push────────▶ │ CAN RX Task  │
+│ RX FIFO  │   drain→push→set_evt  │ GetRxMsg→push│  满则驱逐最老   │ pop→匹配→回调│
 └──────────┘                       └──────────────┘                 └──────┬───────┘
                                                                            │
                                                                    rx_callback(dev, data, len)
@@ -20,17 +20,17 @@ BSP CAN 是基于 STM32 HAL 库的 CAN 总线驱动层，采用 **kfifo 缓冲 +
                                                                     │ 用户回调函数 │
                                                                     └──────────────┘
 
-┌─────────────┐    kfifo(覆盖写)  ┌──────────────┐    HAL (重试)   ┌──────────┐
-│ 用户 Task   │ ──put──────────▶  │ CAN TX Task  │ ─────────────▶  │ 硬件     │
-│ BSP_CAN_Send│    → set_evt      │ kfifo_get→HAL│  满则 sleep(1)  │ TX FIFO  │
-└─────────────┘                   └──────────────┘                 └──────────┘
+┌─────────────┐  mpmc(无锁入队)  ┌──────────────┐    HAL (重试)   ┌──────────┐
+│ 用户 Task   │ ──push─▶        │ CAN TX Task  │ ─────────────▶  │ 硬件     │
+│ BSP_CAN_Send│   → set_evt      │  pop→HAL_Add │  满则 sleep(1)  │ TX FIFO  │
+└─────────────┘                  └──────────────┘                 └──────────┘
 ```
 
 RX/TX 各自独立任务，各用独立计数信号量：
-- `g_can_rx_sem`: ISR drain→put 后 `tx_semaphore_put` → 唤醒 CAN RX Task (prio 3)
+- `g_can_rx_sem`: ISR drain→push 后 `tx_semaphore_put` → 唤醒 CAN RX Task (prio 3)
 - `g_can_tx_sem`: BSP_CAN_Send 入队后 `tx_semaphore_put` → 唤醒 CAN TX Task (prio 4)
 
-TX kfifo 满时自动丢弃最老消息，保证最新数据总能入队。
+TX 队列满时由生产者丢弃最老一帧，保证新帧必然入队；
 
 ### `CAN_Bus_Manager` 内部结构
 
@@ -38,10 +38,13 @@ TX kfifo 满时自动丢弃最老消息，保证最新数据总能入队。
 |------|------|------|
 | `hcan` | `FDCAN/CAN_HandleTypeDef *` | HAL 库 CAN 句柄 |
 | `devices` | `can_dev_slot_t [MAX_DEV]` | 设备查找表 |
-| `rx_fifo` | `struct kfifo` | 接收 FIFO |
-| `rx_fifo_buf` | `BSP_CanMsg_t [RX_FIFO_SIZE]` | 接收 kfifo 底层缓冲区 |
-| `tx_fifo` | `struct kfifo` | 发送 FIFO (覆盖写) |
-| `tx_fifo_buf` | `BSP_CanMsg_t [TX_FIFO_SIZE]` | 发送 kfifo 底层缓冲区 |
+| `rx_queue` | `mpmc_queue_t` | 接收队列 |
+| `rx_queue_buf` | `BSP_CanMsg_t [RX_QUEUE_SIZE]` | 接收队列元素存储 |
+| `rx_queue_seq` | `uint32_t [RX_QUEUE_SIZE]` | 接收队列槽位发布序号 |
+| `tx_queue` | `mpmc_queue_t` | 发送队列 |
+| `tx_queue_buf` | `BSP_CanMsg_t [TX_QUEUE_SIZE]` | 发送队列元素存储 |
+| `tx_queue_seq` | `uint32_t [TX_QUEUE_SIZE]` | 发送队列槽位发布序号 |
+| `tx_evicted` | `uint32_t` | 队列满时被丢弃的最老帧累计数（调试用） |
 | `initialized` | `bool` | 总线是否已激活 |
 
 ### `Can_Device` 结构
@@ -65,6 +68,19 @@ TX kfifo 满时自动丢弃最老消息，保证最新数据总能入队。
 > ISR 中 drain 整个硬件 RX FIFO 后只放一次 sem (批量 sem)。TX 侧每次入队后放一次。
 
 ---
+
+### 标准帧与扩展帧
+
+ID 字段（`rx_id` / `tx_id` / `BSP_CanMsg_t.id`）统一是 32 位：**bit31 = 扩展帧标记，低 29 位 = 实际报文 ID**。
+
+```c
+.cfg.rx_id = 0x205;                          /* 标准帧照旧 */
+.cfg.rx_id = BSP_CAN_EXT_ID(0x100);          /* 29 位扩展帧 */
+```
+
+- `BSP_CAN_IS_EXT(id)` / `BSP_CAN_RAW_ID(id)` 供上层判断与取原始 ID；回调里收到的 `dev` 对应的 id 也带标记。
+- 注册时按标记分别校验上界：标准 `0 ~ 0x7FF`，扩展 `0 ~ 0x1FFFFFFF`，越界直接返回 NULL。
+- 接收 ISR 依据报文 IDE 置/清标记，因此分发和过滤都对两种帧型透明。
 
 ## API 接口说明
 
@@ -158,36 +174,26 @@ for (int i = 0; i < 3; i++) {
 
 ## 内部实现细节
 
-### TX kfifo 覆盖写
-
-```c
-/* BSP_CAN_Send: 入队失败时丢弃最老消息 */
-if (!kfifo_put(&bus->tx_fifo, &msg)) {
-    BSP_CanMsg_t dummy;
-    kfifo_get(&bus->tx_fifo, &dummy);  /* 丢弃最老 */
-    kfifo_put(&bus->tx_fifo, &msg);    /* 写入最新 */
-}
-tx_semaphore_put(&g_can_tx_sem);
-```
-
 ### ISR 批量事件标志
 
 ```c
 bool has_msg = false;
 while (HAL_GetRxFifoFillLevel > 0) {
-    GetRxMessage → kfifo_put;
+    GetRxMessage → can_rx_enqueue (mpmc_queue_push);
     has_msg = true;
 }
 if (has_msg) tx_semaphore_put(&g_can_rx_sem);
 ```
 
-H7 FDCAN TX FIFO 仅 3 槽，F4 CAN 仅 3 邮箱。软件 kfifo (默认 8 槽) 提供额外缓冲，任务自动重试保证不丢帧。
-
 ### 过滤器配置
 
-- **H7 FDCAN**：掩码模式，11-bit 全匹配 (`FilterID2 = 0x7FF`)，奇数 ID → FIFO1，偶数 ID → FIFO0，全局过滤器拒绝未匹配帧。
+- **H7 FDCAN**：掩码模式，奇数 ID → FIFO1，偶数 ID → FIFO0，全局过滤器拒绝未匹配帧。
+  标准帧 11-bit 全匹配 (`FilterID2 = 0x7FF`)，扩展帧 `IdType = FDCAN_EXTENDED_ID`、29-bit 全匹配 (`FilterID2 = 0x1FFFFFFF`)。
+  标准帧与扩展帧各用一套独立计数器，`FilterIndex` 均从 0 起（HAL 内部把扩展索引偏移到 `StdFiltersNbr` 之后）
+  扩展过滤器池大小由 CubeMX 的 `ExtFiltersNbr` 决定（未配置则为 0，此时扩展帧设备注册会失败）。
   首个设备注册时，必须在 `HAL_FDCAN_Start` 前配置全局过滤器；启动后 HAL 处于 BUSY 状态，不允许再配置全局过滤器。配置失败则设备初始化失败。
-- **F4 CAN**：16-bit IDMASK 模式，`FilterId = rx_id << 5`，`FilterMaskId = 0x7FF << 5`。CAN1 占用 bank 0~13，CAN2 占用 bank 14~27。
+- **F4 CAN**：IDMASK 模式。标准帧用 16-bit 刻度，`FilterId = rx_id << 5`、`FilterMaskId = 0x7FF << 5`，一个 bank 的两半填同一条过滤器
+  扩展帧用 **32-bit 刻度**：过滤器值 = `(raw_id << 3) | CAN_ID_EXT`，拆成 `FilterIdHigh:FilterIdLow`，掩码全 1（精确匹配 ID + IDE，RTR/FMT 位为 0 → 只收数据帧）。
 
 
 ## 可调参数 (bsp_can.h)
@@ -195,10 +201,12 @@ H7 FDCAN TX FIFO 仅 3 槽，F4 CAN 仅 3 邮箱。软件 kfifo (默认 8 槽) �
 | 宏 | 默认值 | 说明 |
 |----|--------|------|
 | `BSP_CAN_BUS_NUM` | H7:3, F4:2 | 总线数量 (由芯片型号决定) |
-| `BSP_CAN_RX_FIFO_SIZE` | 8 | per-bus RX kfifo 深度 (必须是 2 的幂) |
-| `BSP_CAN_TX_FIFO_SIZE` | 8 | per-bus TX kfifo 深度 (必须是 2 的幂) |
+| `BSP_CAN_RX_QUEUE_SIZE` | 8 | per-bus RX 无锁队列深度 (必须是 2 的幂) |
+| `BSP_CAN_TX_QUEUE_SIZE` | 32 | per-bus TX 无锁队列深度 (必须是 2 的幂) |
 | `BSP_CAN_MAX_DEV_PER_BUS` | 8 | 单总线最大设备数 |
-| `BSP_CAN_MAX_STD_ID` | 2048 | CAN 标准 ID 最大值 (11-bit) |
+| `BSP_CAN_MAX_STD_ID` | 2048 | 标准帧 ID 上界 (合法 0 ~ 0x7FF) |
+| `BSP_CAN_MAX_EXT_ID` | 0x1FFFFFFF | 扩展帧 ID 上界 (29 位) |
+| `BSP_CAN_EXT_FLAG` | 0x80000000 | ID 的扩展帧标记位，配合 `BSP_CAN_EXT_ID()` / `BSP_CAN_IS_EXT()` / `BSP_CAN_RAW_ID()` |
 
 ### 任务优先级与栈大小 (bsp_can_task.c)
 
@@ -211,8 +219,9 @@ H7 FDCAN TX FIFO 仅 3 槽，F4 CAN 仅 3 邮箱。软件 kfifo (默认 8 槽) �
 ## 注意事项
 
 - **BSP_CAN_TaskInit 必须在 BSP_CAN_Device_Init 之前调用**
-- **rx_id 必须唯一** — 同一总线不支持多个设备注册相同 rx_id
+- **rx_id 必须唯一** — 同一总线不支持多个设备注册相同 rx_id（扩展帧标记参与比较，标准 0x100 与扩展 0x100 视为不同设备）
 - **回调在 CAN RX Task 上下文中执行** — 禁止长时间阻塞
+- **不要在应用层直接调 HAL 收发或改过滤器/中断使能** — `HAL_CAN_DeactivateNotification` 会关掉整条总线该 FIFO 的中断
 
 ## 版本历史
 
@@ -221,3 +230,4 @@ H7 FDCAN TX FIFO 仅 3 槽，F4 CAN 仅 3 邮箱。软件 kfifo (默认 8 槽) �
 | v1.0 | 2026-05-05 | 初始版本 |
 | v2.0 | 2026-05-21 | 移除侵入式链表, 信号量替换为事件标志组，TX kfifo 覆盖写 |
 | v2.1 | 2026-05-21 | 事件标志组替换为信号量 |
+| v3.0 | 2026-10-24 | 收发缓冲统一改为无锁 MPMC 队列，增加扩展帧支持 |

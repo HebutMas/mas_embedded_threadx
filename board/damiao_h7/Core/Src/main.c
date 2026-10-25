@@ -253,10 +253,7 @@ void PeriphCommonClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void tx_application_define(void *first_unused_memory)
-{
-    Robot_Init();
-}
+void tx_application_define(void *first_unused_memory) { Robot_Init(); }
 /* USER CODE END 4 */
 
 /* MPU Configuration */

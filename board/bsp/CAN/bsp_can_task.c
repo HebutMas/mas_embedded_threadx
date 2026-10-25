@@ -34,7 +34,7 @@ static void can_rx_task_entry(ULONG arg)
             if (!g_can_bus[i].initialized) continue;
 
             BSP_CanMsg_t msg;
-            while (kfifo_get(&g_can_bus[i].rx_fifo, &msg))
+            while (mpmc_queue_pop(&g_can_bus[i].rx_queue, &msg))
             {
                 Can_Device *dev = can_dev_find(&g_can_bus[i], msg.id);
                 if (dev != NULL && dev->rx_callback != NULL) dev->rx_callback(dev, msg.data, msg.len);
@@ -57,12 +57,12 @@ static void can_tx_task_entry(ULONG arg)
             if (!g_can_bus[i].initialized) continue;
 
             BSP_CanMsg_t msg;
-            while (kfifo_get(&g_can_bus[i].tx_fifo, &msg))
+            while (mpmc_queue_pop(&g_can_bus[i].tx_queue, &msg))
             {
 #if defined(STM32H723xx)
                 FDCAN_TxHeaderTypeDef TxHeader = {
-                    .Identifier          = msg.id,
-                    .IdType              = FDCAN_STANDARD_ID,
+                    .Identifier          = BSP_CAN_RAW_ID(msg.id),
+                    .IdType              = BSP_CAN_IS_EXT(msg.id) ? FDCAN_EXTENDED_ID : FDCAN_STANDARD_ID,
                     .TxFrameType         = FDCAN_DATA_FRAME,
                     .DataLength          = (msg.len > 8) ? FDCAN_DLC_BYTES_8 : msg.len,
                     .ErrorStateIndicator = FDCAN_ESI_ACTIVE,
@@ -71,12 +71,28 @@ static void can_tx_task_entry(ULONG arg)
                 };
                 while (HAL_FDCAN_AddMessageToTxFifoQ(msg.hcan, &TxHeader, msg.data) != HAL_OK) tx_thread_sleep(1);
 #elif defined(STM32F407xx)
-                CAN_TxHeaderTypeDef TxHeader = {.StdId = msg.id, .DLC = msg.len, .RTR = CAN_RTR_DATA, .IDE = CAN_ID_STD};
-                uint32_t            mailbox;
+                CAN_TxHeaderTypeDef TxHeader = {
+                    .DLC = msg.len,
+                    .RTR = CAN_RTR_DATA,
+                    .IDE = BSP_CAN_IS_EXT(msg.id) ? CAN_ID_EXT : CAN_ID_STD,
+                };
+                if (BSP_CAN_IS_EXT(msg.id))
+                    TxHeader.ExtId = BSP_CAN_RAW_ID(msg.id);
+                else
+                    TxHeader.StdId = BSP_CAN_RAW_ID(msg.id);
+                uint32_t mailbox;
                 while (HAL_CAN_AddTxMessage(msg.hcan, &TxHeader, msg.data, &mailbox) != HAL_OK) tx_thread_sleep(1);
 #elif defined(STM32F105xC) || defined(STM32F103xB)
-                CAN_TxHeaderTypeDef TxHeader = {.StdId = msg.id, .DLC = msg.len, .RTR = CAN_RTR_DATA, .IDE = CAN_ID_STD};
-                uint32_t            mailbox;
+                CAN_TxHeaderTypeDef TxHeader = {
+                    .DLC = msg.len,
+                    .RTR = CAN_RTR_DATA,
+                    .IDE = BSP_CAN_IS_EXT(msg.id) ? CAN_ID_EXT : CAN_ID_STD,
+                };
+                if (BSP_CAN_IS_EXT(msg.id))
+                    TxHeader.ExtId = BSP_CAN_RAW_ID(msg.id);
+                else
+                    TxHeader.StdId = BSP_CAN_RAW_ID(msg.id);
+                uint32_t mailbox;
                 while (HAL_CAN_AddTxMessage(msg.hcan, &TxHeader, msg.data, &mailbox) != HAL_OK) tx_thread_sleep(1);
 #endif
             }
