@@ -3,7 +3,7 @@ build/
 build_*/
 cmake-build-*/
 .cache/
-
+.agents
 # 调试文件
 *.log
 *.tmp

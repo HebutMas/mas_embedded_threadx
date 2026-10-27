@@ -204,6 +204,16 @@ uint8_t gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
                 Motor_SetRef((Motor_Base *)pitch_motor, gimbal_cmd->pitch * DEGREE_2_RAD);
                 search_yaw_angle = ins->YawTotalAngle_rad;
                 break;
+            case gimbal_gyro_nav_mode:
+                Motor_Start((Motor_Base *)big_yaw_motor);
+                Motor_Start((Motor_Base *)small_yaw_motor);
+                Motor_Start((Motor_Base *)pitch_motor);
+                // 大小 yaw 协调控制
+                Motor_SetRef((Motor_Base *)big_yaw_motor, big_yaw_offset);
+                Motor_SetRef((Motor_Base *)small_yaw_motor, gimbal_cmd->yaw * DEGREE_2_RAD + auto_yaw_offset);
+                Motor_SetRef((Motor_Base *)pitch_motor, gimbal_cmd->pitch * DEGREE_2_RAD);
+                search_yaw_angle = ins->YawTotalAngle_rad;
+                break;
             case gimbal_auto_mode:
                 Motor_Start((Motor_Base *)big_yaw_motor);
                 Motor_Start((Motor_Base *)small_yaw_motor);

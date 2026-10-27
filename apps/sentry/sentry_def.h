@@ -33,6 +33,7 @@ typedef enum
     gimbal_zero_force = 0, /* 云台停止模式 */
     gimbal_gyro_mode,      /*云台控制模式*/
     gimbal_auto_mode,      /*云台自动模式*/
+    gimbal_gyro_nav_mode   /*导航控制模式*/
 } gimbal_mode_e;
 
 typedef struct
