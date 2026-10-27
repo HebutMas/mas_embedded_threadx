@@ -12,7 +12,8 @@ CAN_Bus_Manager g_can_bus[BSP_CAN_BUS_NUM];
 /* Filter 配置 */
 
 #if defined(STM32H723xx)
-static uint16_t g_fdcan_filter_idx[BSP_CAN_BUS_NUM];
+static uint16_t g_fdcan_filter_idx[BSP_CAN_BUS_NUM];     /* 标准帧过滤器计数 */
+static uint16_t g_fdcan_ext_filter_idx[BSP_CAN_BUS_NUM]; /* 扩展帧过滤器计数 */
 
 static int8_t fdcan_config_filter(FDCAN_HandleTypeDef *hfdcan, uint32_t rx_id, uint8_t *out_bank_index)
 {
@@ -25,19 +26,35 @@ static int8_t fdcan_config_filter(FDCAN_HandleTypeDef *hfdcan, uint32_t rx_id, u
         bus_idx = 2;
     else
         return -1;
-    if (g_fdcan_filter_idx[bus_idx] >= hfdcan->Init.StdFiltersNbr) return -1;
 
+    /* 标准帧与扩展帧各用一套独立计数器：HAL 对扩展过滤器的 FilterIndex 同样从 0 起，
+     * 内部再偏移到 StdFiltersNbr 之后，扩展过滤器数量由 CubeMX 的 ExtFiltersNbr 决定，为 0 时此处拒绝扩展帧。 */
     FDCAN_FilterTypeDef cfg = {
-        .FilterIndex  = g_fdcan_filter_idx[bus_idx],
-        .IdType       = FDCAN_STANDARD_ID,
         .FilterType   = FDCAN_FILTER_MASK,
         .FilterConfig = (rx_id & 1) ? FDCAN_FILTER_TO_RXFIFO1 : FDCAN_FILTER_TO_RXFIFO0,
-        .FilterID1    = rx_id,
-        .FilterID2    = 0x7FF,
     };
+    uint16_t *idx;
+    if (BSP_CAN_IS_EXT(rx_id))
+    {
+        if (g_fdcan_ext_filter_idx[bus_idx] >= hfdcan->Init.ExtFiltersNbr) return -1;
+        cfg.FilterIndex = g_fdcan_ext_filter_idx[bus_idx];
+        cfg.IdType      = FDCAN_EXTENDED_ID;
+        cfg.FilterID1   = BSP_CAN_RAW_ID(rx_id);
+        cfg.FilterID2   = 0x1FFFFFFF; /* 29 位 ID 全匹配 */
+        idx             = &g_fdcan_ext_filter_idx[bus_idx];
+    }
+    else
+    {
+        if (g_fdcan_filter_idx[bus_idx] >= hfdcan->Init.StdFiltersNbr) return -1;
+        cfg.FilterIndex = g_fdcan_filter_idx[bus_idx];
+        cfg.IdType      = FDCAN_STANDARD_ID;
+        cfg.FilterID1   = rx_id;
+        cfg.FilterID2   = 0x7FF; /* 11 位 ID 全匹配 */
+        idx             = &g_fdcan_filter_idx[bus_idx];
+    }
     if (HAL_FDCAN_ConfigFilter(hfdcan, &cfg) != HAL_OK) return -1;
     if (out_bank_index) *out_bank_index = (uint8_t)cfg.FilterIndex;
-    g_fdcan_filter_idx[bus_idx]++;
+    (*idx)++;
     return 0;
 }
 
@@ -61,18 +78,31 @@ static bool can_config_filter(CAN_HandleTypeDef *hcan, uint32_t rx_id, uint8_t *
     else
         return false;
 
+    /* 标准帧用 16 位刻度，一个 bank 放两条同样的过滤器；
+     * 扩展帧用 32 位刻度：(ID<<3 | IDE) 合成一个 32 位过滤器值；注意 32 位刻度下每条过滤器独占一个 bank。 */
     CAN_FilterTypeDef cfg = {
         .FilterMode           = CAN_FILTERMODE_IDMASK,
-        .FilterScale          = CAN_FILTERSCALE_16BIT,
+        .FilterScale          = BSP_CAN_IS_EXT(rx_id) ? CAN_FILTERSCALE_32BIT : CAN_FILTERSCALE_16BIT,
         .FilterFIFOAssignment = (rx_id & 1) ? CAN_FILTER_FIFO0 : CAN_FILTER_FIFO1,
         .SlaveStartFilterBank = 14,
-        .FilterIdLow          = rx_id << 5,
-        .FilterMaskIdLow      = 0x7FF << 5,
-        .FilterIdHigh         = rx_id << 5,
-        .FilterMaskIdHigh     = 0x7FF << 5,
         .FilterBank           = filter_bank,
         .FilterActivation     = CAN_FILTER_ENABLE,
     };
+    if (BSP_CAN_IS_EXT(rx_id))
+    {
+        uint32_t f           = (BSP_CAN_RAW_ID(rx_id) << 3) | CAN_ID_EXT;
+        cfg.FilterIdHigh     = (uint16_t)(f >> 16);
+        cfg.FilterIdLow      = (uint16_t)f;
+        cfg.FilterMaskIdHigh = 0xFFFF;
+        cfg.FilterMaskIdLow  = 0xFFFF; /* 精确匹配 ID + IDE + RTR(=0 数据帧) */
+    }
+    else
+    {
+        cfg.FilterIdHigh     = rx_id << 5;
+        cfg.FilterIdLow      = rx_id << 5;
+        cfg.FilterMaskIdHigh = 0x7FF << 5;
+        cfg.FilterMaskIdLow  = 0x7FF << 5;
+    }
     if (HAL_CAN_ConfigFilter(hcan, &cfg) != HAL_OK)
     {
         if (hcan->Instance == CAN1)
@@ -93,18 +123,31 @@ static bool can_config_filter(CAN_HandleTypeDef *hcan, uint32_t rx_id, uint8_t *
     if (g_can_filter_idx >= 14) return false;
     filter_bank = g_can_filter_idx++;
 
+    /* 标准帧用 16 位刻度，一个 bank 放两条同样的过滤器；
+     * 扩展帧用 32 位刻度：(ID<<3 | IDE) 合成一个 32 位过滤器值；注意 32 位刻度下每条过滤器独占一个 bank。 */
     CAN_FilterTypeDef cfg = {
         .FilterMode           = CAN_FILTERMODE_IDMASK,
-        .FilterScale          = CAN_FILTERSCALE_16BIT,
+        .FilterScale          = BSP_CAN_IS_EXT(rx_id) ? CAN_FILTERSCALE_32BIT : CAN_FILTERSCALE_16BIT,
         .FilterFIFOAssignment = (rx_id & 1) ? CAN_FILTER_FIFO0 : CAN_FILTER_FIFO1,
         .SlaveStartFilterBank = 14,
-        .FilterIdLow          = rx_id << 5,
-        .FilterMaskIdLow      = 0x7FF << 5,
-        .FilterIdHigh         = rx_id << 5,
-        .FilterMaskIdHigh     = 0x7FF << 5,
         .FilterBank           = filter_bank,
         .FilterActivation     = CAN_FILTER_ENABLE,
     };
+    if (BSP_CAN_IS_EXT(rx_id))
+    {
+        uint32_t f           = (BSP_CAN_RAW_ID(rx_id) << 3) | CAN_ID_EXT;
+        cfg.FilterIdHigh     = (uint16_t)(f >> 16);
+        cfg.FilterIdLow      = (uint16_t)f;
+        cfg.FilterMaskIdHigh = 0xFFFF;
+        cfg.FilterMaskIdLow  = 0xFFFF; /* 精确匹配 ID + IDE + RTR(=0 数据帧) */
+    }
+    else
+    {
+        cfg.FilterIdHigh     = rx_id << 5;
+        cfg.FilterIdLow      = rx_id << 5;
+        cfg.FilterMaskIdHigh = 0x7FF << 5;
+        cfg.FilterMaskIdLow  = 0x7FF << 5;
+    }
     if (HAL_CAN_ConfigFilter(hcan, &cfg) != HAL_OK)
     {
         g_can_filter_idx--;
@@ -137,7 +180,11 @@ Can_Device *BSP_CAN_Device_Init(Can_Device_Init_Config_s *config)
         LOG_E("invalid config");
         return NULL;
     }
-    if (config->rx_id >= BSP_CAN_MAX_STD_ID || config->tx_id >= BSP_CAN_MAX_STD_ID)
+    /* ID 上界按扩展帧标记分别校验；低 29 位之外的值一律拒绝 */
+    if ((BSP_CAN_IS_EXT(config->rx_id) && BSP_CAN_RAW_ID(config->rx_id) > BSP_CAN_MAX_EXT_ID) ||
+        (!BSP_CAN_IS_EXT(config->rx_id) && config->rx_id >= BSP_CAN_MAX_STD_ID) ||
+        (BSP_CAN_IS_EXT(config->tx_id) && BSP_CAN_RAW_ID(config->tx_id) > BSP_CAN_MAX_EXT_ID) ||
+        (!BSP_CAN_IS_EXT(config->tx_id) && config->tx_id >= BSP_CAN_MAX_STD_ID))
     {
         LOG_E("CAN ID out of range");
         return NULL;
@@ -154,10 +201,10 @@ Can_Device *BSP_CAN_Device_Init(Can_Device_Init_Config_s *config)
     {
         memset(bus, 0, sizeof(*bus));
         bus->hcan = config->hcan;
-        if (kfifo_init(&bus->rx_fifo, bus->rx_fifo_buf, BSP_CAN_RX_FIFO_SIZE, sizeof(BSP_CanMsg_t)) != 0 ||
-            kfifo_init(&bus->tx_fifo, bus->tx_fifo_buf, BSP_CAN_TX_FIFO_SIZE, sizeof(BSP_CanMsg_t)) != 0)
+        if (mpmc_queue_init(&bus->rx_queue, bus->rx_queue_buf, bus->rx_queue_seq, BSP_CAN_RX_QUEUE_SIZE, sizeof(BSP_CanMsg_t)) != 0 ||
+            mpmc_queue_init(&bus->tx_queue, bus->tx_queue_buf, bus->tx_queue_seq, BSP_CAN_TX_QUEUE_SIZE, sizeof(BSP_CanMsg_t)) != 0)
         {
-            LOG_E("kfifo init failed");
+            LOG_E("can queue init failed");
             return NULL;
         }
 #if defined(STM32H723xx)
@@ -246,13 +293,7 @@ int BSP_CAN_Send(Can_Device *device, const uint8_t *data, uint8_t len)
     BSP_CanMsg_t msg = {.hcan = bus->hcan, .id = device->tx_id, .len = len};
     memcpy(msg.data, data, len);
 
-    /* tx_fifo 满时丢弃最老消息，保证最新数据总能入队 */
-    if (!kfifo_put(&bus->tx_fifo, &msg))
-    {
-        BSP_CanMsg_t dummy;
-        kfifo_get(&bus->tx_fifo, &dummy);
-        kfifo_put(&bus->tx_fifo, &msg);
-    }
+    mpmc_queue_push(&bus->tx_queue, &msg, NULL);
     tx_semaphore_put(&g_can_tx_sem);
     return 0;
 }
@@ -264,13 +305,7 @@ int BSP_CAN_SendMessage(BSP_CanMsg_t *msg)
     CAN_Bus_Manager *bus = can_bus_find((void *)msg->hcan, true);
     if (bus == NULL) return -1;
 
-    /* tx_fifo 满时丢弃最老消息，保证最新数据总能入队 */
-    if (!kfifo_put(&bus->tx_fifo, msg))
-    {
-        BSP_CanMsg_t dummy;
-        kfifo_get(&bus->tx_fifo, &dummy);
-        kfifo_put(&bus->tx_fifo, msg);
-    }
+    mpmc_queue_push(&bus->tx_queue, msg, NULL);
     tx_semaphore_put(&g_can_tx_sem);
     return 0;
 }
@@ -291,11 +326,12 @@ static void can_fdcan_rx_callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo)
         FDCAN_RxHeaderTypeDef rx_header;
         uint8_t               rx_data[8];
         if (HAL_FDCAN_GetRxMessage(hfdcan, RxFifo, &rx_header, rx_data) != HAL_OK) continue;
-        msg.id  = rx_header.Identifier;
+        msg.id  = (rx_header.IdType == FDCAN_EXTENDED_ID) ? BSP_CAN_EXT_ID(rx_header.Identifier) : rx_header.Identifier;
         msg.len = (uint8_t)(rx_header.DataLength & 0x0F);
         if (msg.len > 8) msg.len = 8;
         memcpy(msg.data, rx_data, msg.len);
-        if (kfifo_put(&bus->rx_fifo, &msg)) has_msg = true;
+        mpmc_queue_push(&bus->rx_queue, &msg, NULL);
+        has_msg = true;
     }
     if (has_msg) tx_semaphore_put(&g_can_rx_sem);
 }
@@ -324,11 +360,12 @@ static void can_f4_rx_callback(CAN_HandleTypeDef *hcan, uint32_t RxFifo)
         CAN_RxHeaderTypeDef rx_header;
         uint8_t             rx_data[8];
         if (HAL_CAN_GetRxMessage(hcan, RxFifo, &rx_header, rx_data) != HAL_OK) continue;
-        msg.id  = rx_header.StdId;
+        msg.id  = (rx_header.IDE == CAN_ID_EXT) ? BSP_CAN_EXT_ID(rx_header.ExtId) : rx_header.StdId;
         msg.len = rx_header.DLC;
         if (msg.len > 8) msg.len = 8;
         memcpy(msg.data, rx_data, msg.len);
-        if (kfifo_put(&bus->rx_fifo, &msg)) has_msg = true;
+        mpmc_queue_push(&bus->rx_queue, &msg, NULL);
+        has_msg = true;
     }
     if (has_msg) tx_semaphore_put(&g_can_rx_sem);
 }

@@ -41,13 +41,8 @@ static void vision_thread_entry(ULONG arg)
 
     while (1)
     {
-        if (cdc_acm_recv(VISION_CDC_PORT, buf, sizeof(buf), &rx_len, TX_WAIT_FOREVER) <= 0)
-        {
-            tx_thread_sleep(1);
-            continue;
-        }
+        cdc_acm_recv(VISION_CDC_PORT, buf, sizeof(buf), &rx_len, TX_WAIT_FOREVER);
 
-        /* ponytail: 每次读取仅取首个完整帧；跨次半帧需增加流式重组。 */
         for (uint32_t i = 0; i + VISION_FRAME_RX_SIZE <= rx_len; i++)
         {
             if (buf[i] == VISION_RX_HEADER && Verify_CRC16_Check_Sum(&buf[i], VISION_FRAME_RX_SIZE))
@@ -58,8 +53,6 @@ static void vision_thread_entry(ULONG arg)
                 break;
             }
         }
-
-        tx_thread_relinquish();
     }
 }
 

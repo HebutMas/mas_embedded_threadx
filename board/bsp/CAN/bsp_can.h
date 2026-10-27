@@ -17,7 +17,7 @@
 #include "can.h"
 #endif
 
-#include "kfifo.h"
+#include "mpmc_queue.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -52,10 +52,23 @@
 #define BSP_CAN_IS_HANDLE3(p) (0)
 #endif
 
-#define BSP_CAN_RX_FIFO_SIZE    8
-#define BSP_CAN_TX_FIFO_SIZE    8
+#define BSP_CAN_RX_QUEUE_SIZE   32 /* 接收队列，容量须为 2 的幂 */
+#define BSP_CAN_TX_QUEUE_SIZE   8  /* 发送队列，容量须为 2 的幂 */
 #define BSP_CAN_MAX_DEV_PER_BUS 8
-#define BSP_CAN_MAX_STD_ID      2048
+
+/* 标准帧 / 扩展帧统一用一个 32 位 ID 表达：bit31 = 扩展帧标记，低 29 位 = 实际报文 ID。
+ *   注册：  .rx_id = BSP_CAN_EXT_ID(0x100)   （标准帧照旧直接写数值）
+ *   分发：  ISR 已按报文 IDE 置好标记，回调里拿到的 id 同样带标记 */
+#define BSP_CAN_EXT_FLAG        0x80000000u
+#define BSP_CAN_EXT_ID(id)      ((uint32_t)(id) | BSP_CAN_EXT_FLAG)
+#define BSP_CAN_IS_EXT(id)      (((uint32_t)(id) & BSP_CAN_EXT_FLAG) != 0u)
+#define BSP_CAN_RAW_ID(id)      ((uint32_t)(id) & ~BSP_CAN_EXT_FLAG)
+
+#define BSP_CAN_MAX_STD_ID      2048        /* 标准帧 ID 上界 (合法 0 ~ 0x7FF) */
+#define BSP_CAN_MAX_EXT_ID      0x1FFFFFFFu /* 扩展帧 ID 上界 (29 位) */
+
+_Static_assert((BSP_CAN_RX_QUEUE_SIZE & (BSP_CAN_RX_QUEUE_SIZE - 1u)) == 0u, "BSP_CAN_RX_QUEUE_SIZE must set power of 2");
+_Static_assert((BSP_CAN_TX_QUEUE_SIZE & (BSP_CAN_TX_QUEUE_SIZE - 1u)) == 0u, "BSP_CAN_TX_QUEUE_SIZE must set power of 2");
 
 typedef struct Can_Device Can_Device;
 
@@ -120,12 +133,14 @@ typedef struct
 #elif defined(STM32F105xC) || defined(STM32F103xB)
     CAN_HandleTypeDef *hcan;
 #endif
-    can_dev_slot_t devices[BSP_CAN_MAX_DEV_PER_BUS];  /* 设备查找表 */
-    struct kfifo   rx_fifo;                           /* 接收 FIFO */
-    BSP_CanMsg_t   rx_fifo_buf[BSP_CAN_RX_FIFO_SIZE]; /* 接收 FIFO 缓冲区 */
-    struct kfifo   tx_fifo;                           /* 发送 FIFO */
-    BSP_CanMsg_t   tx_fifo_buf[BSP_CAN_TX_FIFO_SIZE]; /* 发送 FIFO 缓冲区 */
-    bool           initialized;                       /* 是否初始化 */
+    can_dev_slot_t devices[BSP_CAN_MAX_DEV_PER_BUS];    /* 设备查找表 */
+    mpmc_queue_t   rx_queue;                            /* 接收队列 */
+    BSP_CanMsg_t   rx_queue_buf[BSP_CAN_RX_QUEUE_SIZE]; /* 接收队列元素存储 */
+    uint32_t       rx_queue_seq[BSP_CAN_RX_QUEUE_SIZE]; /* 接收队列槽位序号 */
+    mpmc_queue_t   tx_queue;                            /* 发送队列*/
+    BSP_CanMsg_t   tx_queue_buf[BSP_CAN_TX_QUEUE_SIZE]; /* 发送队列元素存储 */
+    uint32_t       tx_queue_seq[BSP_CAN_TX_QUEUE_SIZE]; /* 发送队列槽位序号 */
+    bool           initialized;                         /* 是否初始化 */
 } CAN_Bus_Manager;
 
 extern CAN_Bus_Manager g_can_bus[];
@@ -157,12 +172,24 @@ static inline void can_dev_insert(CAN_Bus_Manager *bus, int slot, uint32_t rx_id
 }
 
 /**
-
-*/
+ * @brief 初始化CAN设备
+ * @param config CAN设备初始化配置
+ * @return Can_Device* 成功返回CAN设备指针，失败返回NULL
+ */
 Can_Device *BSP_CAN_Device_Init(Can_Device_Init_Config_s *config);
-/*
-*/
-int         BSP_CAN_Send(Can_Device *device, const uint8_t *data, uint8_t len);
-int         BSP_CAN_SendMessage(BSP_CanMsg_t *msg);
+/**
+ * @brief 发送CAN消息
+ * @param device CAN设备指针
+ * @param data 发送数据
+ * @param len 发送数据长度
+ * @return int 成功返回0，失败返回-1
+ */
+int BSP_CAN_Send(Can_Device *device, const uint8_t *data, uint8_t len);
+/**
+ * @brief 发送CAN消息
+ * @param msg CAN消息
+ * @return int 成功返回0，失败返回-1
+ */
+int BSP_CAN_SendMessage(BSP_CanMsg_t *msg);
 
 #endif /* _BSP_CAN_H_ */
