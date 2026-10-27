@@ -56,6 +56,9 @@ static void zdt_position_cmd(UART_Motor_t *m, int32_t pulses, uint16_t speed_rpm
     uint8_t  dir        = (pulses >= 0) ? 0x00 : 0x01;
     uint32_t abs_pulses = (uint32_t)((pulses >= 0) ? pulses : -pulses);
 
+    /* Emm 固件位置帧 (13 字节, 与官方 emm_stepper 库一致):
+     * [地址][FD][方向][速度2][加速度][脉冲4][运动模式][同步标志][6B]
+     * 运动模式 0 = 相对上一目标位置; 同步标志 0 = 立即执行 */
     m->tx_buf[0]  = m->addr;
     m->tx_buf[1]  = CMD_POSITION;
     m->tx_buf[2]  = dir;
@@ -66,8 +69,8 @@ static void zdt_position_cmd(UART_Motor_t *m, int32_t pulses, uint16_t speed_rpm
     m->tx_buf[7]  = (uint8_t)(abs_pulses >> 16);
     m->tx_buf[8]  = (uint8_t)(abs_pulses >> 8);
     m->tx_buf[9]  = (uint8_t)(abs_pulses & 0xFF);
-    m->tx_buf[10] = 0x00; /* 相对位置模式 */
-    m->tx_buf[11] = 0x00; /* 不同步 */
+    m->tx_buf[10] = 0x00; /* 运动模式: 相对上一目标位置 */
+    m->tx_buf[11] = 0x00; /* 同步标志: 立即执行 */
     m->tx_buf[12] = CHECKSUM;
     BSP_UART_Send(m->uart_dev, m->tx_buf, 13, TX_WAIT_FOREVER);
 }

@@ -69,6 +69,13 @@ static void dm_can_rx_callback(Can_Device *dev, const uint8_t *data, uint8_t len
     motor->base.measure.torque_nm          = motor->measure.torque;
 
     Module_Offline_device_update(motor->base.offline_dev);
+
+    if (motor->startup_enable_pending)
+    {
+        motor->startup_enable_pending = 0;
+        Motor_DM_Cmd(motor, DM_CMD_CLEAR_ERROR);
+        Motor_DM_Cmd(motor, DM_CMD_MOTOR_START);
+    }
 }
 
 /*  MIT 模式控制帧 */
@@ -264,12 +271,13 @@ DM_Motor_t *Motor_DM_Init(Motor_Init_Config_s *config, uint32_t DM_Mode_type)
     memset(motor, 0, sizeof(DM_Motor_t));
 
     /* 初始化基类字段 */
-    motor->base.type      = config->motor_init_info.motor_type;
-    motor->base.transport = MOTOR_TRANSPORT_CAN;
-    motor->base.info      = config->motor_init_info;
-    motor->base.setting   = config->setting_init_config;
-    motor->mode_type      = DM_Mode_type;
-    motor->params         = dm_get_params(config->motor_init_info.motor_type);
+    motor->base.type              = config->motor_init_info.motor_type;
+    motor->base.transport         = MOTOR_TRANSPORT_CAN;
+    motor->base.info              = config->motor_init_info;
+    motor->base.setting           = config->setting_init_config;
+    motor->mode_type              = DM_Mode_type;
+    motor->params                 = dm_get_params(config->motor_init_info.motor_type);
+    motor->startup_enable_pending = 1;
 
     /* Master ID (rx_id) 必须大于 CAN ID (tx_id) 且各不相同 */
     {
