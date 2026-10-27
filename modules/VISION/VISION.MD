@@ -42,8 +42,7 @@ app → Module_Vision_Send() → 帧头 + VisionSendPacket + CRC16
 ```
 
 发送在调用者线程中执行；VISION 线程负责接收。
-接收线程使用 `TX_WAIT_FOREVER` 等待 CDC0 事件，读取失败时休眠 1 tick。
-每批处理后让出同优先级线程，避免持续来包时阻碍 NAV。
+接收线程使用 `TX_WAIT_FOREVER` 阻塞等待 CDC0 数据：有数据即处理，无数据挂起
 
 ### 内部结构
 

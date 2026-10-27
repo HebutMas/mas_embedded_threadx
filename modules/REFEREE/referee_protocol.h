@@ -78,8 +78,8 @@
 #define ROBOT_ID_RED_SENTRY          7
 #define ROBOT_ID_RED_DART            8
 #define ROBOT_ID_RED_RADAR           9
-#define ROBOT_ID_RED_OUTPOST         10
-#define ROBOT_ID_RED_BASE            11
+#define ROBOT_ID_RED_BASE            10
+#define ROBOT_ID_RED_OUTPOST         11
 
 // 蓝方机器人ID
 #define ROBOT_ID_BLUE_HERO           101
@@ -91,8 +91,8 @@
 #define ROBOT_ID_BLUE_SENTRY         107
 #define ROBOT_ID_BLUE_DART           108
 #define ROBOT_ID_BLUE_RADAR          109
-#define ROBOT_ID_BLUE_OUTPOST        110
-#define ROBOT_ID_BLUE_BASE           111
+#define ROBOT_ID_BLUE_BASE           110
+#define ROBOT_ID_BLUE_OUTPOST        111
 
 // 选手端ID
 #define CLIENT_ID_RED_HERO           0x0101
@@ -151,10 +151,12 @@ typedef struct __attribute__((packed))
     uint16_t ally_engineer_hp;   // 己方工程血量
     uint16_t ally_infantry_3_hp; // 己方3号步兵血量
     uint16_t ally_infantry_4_hp; // 己方4号步兵血量
-    uint16_t reserved1;          // 保留位（5号步兵）
+    int16_t  damage_difference;  // 己方全队总伤害与对方总伤害之差
     uint16_t ally_sentry_hp;     // 己方哨兵血量
     uint16_t ally_outpost_hp;    // 己方前哨站血量
     uint16_t ally_base_hp;       // 己方基地血量
+    uint16_t enemy_outpost_hp;   // 对方前哨站血量
+    uint16_t enemy_base_hp;      // 对方基地血量
 } robot_hp_data_t;
 
 // 0x0101 场地事件数据
@@ -229,6 +231,7 @@ typedef struct __attribute__((packed))
     uint16_t            shooter_cooling_value; // 射击热量冷却值
     uint16_t            shooter_heat_limit;    // 射击热量上限
     uint16_t            chassis_power_limit;   // 底盘功率上限
+    float               bullet_speed_limit;    // 射击初速度上限
     power_mgmt_output_t power_output;          // 电源管理输出状态（联合体）
 } robot_status_t;
 
@@ -439,7 +442,7 @@ typedef union
         uint16_t team_17mm_quota   : 11; // bit1-11: 17mm可兑换发弹量
         uint16_t posture           : 2;  // bit12-13: 哨兵姿态 1=攻击 2=防御 3=移动
         uint16_t rune_can_activate : 1;  // bit14: 能量机关可激活
-        uint16_t reserved          : 1;  // bit15
+        uint16_t enhanced_posture  : 1;  // bit15: 当前姿态是否为强化姿态
     };
     uint16_t value;
 } sentry_info_word1_t;
@@ -448,6 +451,7 @@ typedef struct __attribute__((packed))
 {
     sentry_info_word0_t sentry_info;   // 主信息位域
     sentry_info_word1_t sentry_info_2; // 扩展信息位域
+    uint64_t            sentry_info_3; // 各姿态弱化前剩余可持续时长，每 8bit 一种姿态
 } sentry_auto_sync_t;
 
 // 0x0301 机器人交互数据头
@@ -469,9 +473,9 @@ typedef union
         uint32_t bullet_exchange_num   : 11; // bit2-12: 兑换发弹量值（单调递增）
         uint32_t remote_bullet_req_cnt : 4;  // bit13-16: 远程补弹请求次数（单调递增）
         uint32_t remote_heal_req_cnt   : 4;  // bit17-20: 远程补血请求次数（单调递增）
-        uint32_t change_posture        : 2;  // bit21-22: 修改姿态 1=攻击 2=防御 3=移动
-        uint32_t confirm_activate_rune : 1;  // bit23: 确认激活能量机关
-        uint32_t reserved              : 8;  // bit24-31
+        uint32_t change_posture        : 3;  // bit21-23: 修改姿态 1~3普通 4~6强化，默认3
+        uint32_t confirm_activate_rune : 1;  // bit24: 确认使能量机关进入激活状态
+        uint32_t reserved              : 7;  // bit25-31
     };
     uint32_t value;
 } sentry_cmd_t;
