@@ -9,6 +9,7 @@
 
 #include "turn_control.h"
 #include "observer.h"
+#include "car_state.h"
 
 static const float TURN_K11 = 22.3607f * 2.2f; /* 49.19, luntui1 原值 */
 static const float TURN_K12 = 4.6885f * 1.4f;  /* 6.56,  luntui1 原值 */
@@ -25,6 +26,13 @@ void turn_control_update(float turn_set_angle)
 {
     const observer *obs = observer_get();
     if (obs == NULL) return;
+
+    /* 调姿期间不更新转向: 摆腿时轮子锁定, 遥控转向不攒 (对齐 luntui1 摆腿跳过 turn_control) */
+    if (car_state_get() == STATE_POSE_ADJUST)
+    {
+        turn_ctrl.delta_t = 0.0f;
+        return;
+    }
 
     /* mode0 单环: 设定角前馈 + 偏航角速度阻尼
      * (对齐 luntui1 x_observe.c turn_control 的 mode0 分支) */

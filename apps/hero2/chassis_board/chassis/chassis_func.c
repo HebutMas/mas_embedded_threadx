@@ -35,8 +35,8 @@
  *   6 | wheel_r | 右轮 | 反装 |  Y   | 4
  *
  * ========== 控制流水线 (2ms) ==========
- * observer_update → kinematics_calc → car_state_update → length_control
- * → LQR_calc → leg_coor_control → roll_control → gas_spring_calc → VMC_calc
+ * observer_update → kinematics_calc → car_state_update → pose_adjust_control
+ * → length_control → LQR_calc → leg_coor_control → roll_control → gas_spring_calc → VMC_calc
  *
  * ========== 安全机制 ==========
  * 遥控掉线 或 任意电机离线 → 全部 Stop
@@ -59,6 +59,7 @@
 #include "roll_control.h"
 #include "gas_spring.h"
 #include "VMC.h"
+#include "pose_adjust.h"
 
 #include <stdint.h>
 
@@ -178,6 +179,7 @@ void chassis_init(void)
     roll_init();
     gas_spring_init();
     car_state_init();
+    pose_adjust_init();
     turn_control_init();
 }
 
@@ -217,7 +219,7 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
             if (wheels[i] != NULL)
                 Motor_Stop((Motor_Base *)wheels[i]);
         }
-        car_state_reset();      /* 掉线: 回起立态, 恢复后重新起立 */
+        car_state_reset();      /* 掉线: 回起立态 (含清 FALLEN), 恢复后重新起立 */
         march_displacement = 0.0f;   /* 掉线: 位移目标归零 */
         observer_reset_kf_x();       /* 掉线: 位移反馈归零 (等价 luntui1 KF_x=0) */
         turn_control_reset();        /* 掉线: 转向输出归零 (对应 luntui1 flag!=0) */
@@ -237,7 +239,8 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
     /* ---- 控制流水线 ---- */
     observer_update(joints, wheels);
     kinematics_calc();
-    car_state_update(); /* 起立/平衡判据 (运动学之后) */
+    car_state_update();   /* 起立/平衡判据 (运动学之后) */
+    pose_adjust_control(); /* 调姿摆腿 (内部自判状态) */
     length_control();
 
     turn_control_update(chassis_cmd->turn_cmd);
@@ -247,6 +250,18 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
     roll_control();
     gas_spring_calc();
     VMC_calc();
+
+    /* ---- 摔倒保护: 摔倒状态下六电机发 0 (只发 0, 不碰 enableflag) ---- */
+    if (car_state_get() == STATE_FALLEN)
+    {
+        Motor_SetOutputTorque((Motor_Base *)hip_4,  0.0f);
+        Motor_SetOutputTorque((Motor_Base *)hip_3,  0.0f);
+        Motor_SetOutputTorque((Motor_Base *)hip_2,  0.0f);
+        Motor_SetOutputTorque((Motor_Base *)hip_1,  0.0f);
+        Motor_SetOutputTorque((Motor_Base *)wheel_l, 0.0f);
+        Motor_SetOutputTorque((Motor_Base *)wheel_r, 0.0f);
+        return;
+    }
 
     /* ---- VMC 力矩输出 ---- */
     const VMC *vmc = VMC_get();
@@ -263,7 +278,11 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
     }
     const LQR *lqr = LQR_get();
     const turn_control_t *turn = turn_control_get();
-    if (lqr != NULL && turn != NULL) {
+    if (car_state_get() == STATE_POSE_ADJUST) {
+        /* 调姿: 轮子主动清零 (只跳过赋值会让电机继续发上一拍残留力矩) */
+        Motor_SetOutputTorque((Motor_Base *)wheel_l, 0.0f);
+        Motor_SetOutputTorque((Motor_Base *)wheel_r, 0.0f);
+    } else if (lqr != NULL && turn != NULL) {
         Motor_SetOutputTorque((Motor_Base *)wheel_l,  lqr->TL  - turn->delta_t / 2.0f);
         Motor_SetOutputTorque((Motor_Base *)wheel_r, -lqr->TR - turn->delta_t / 2.0f);
 
