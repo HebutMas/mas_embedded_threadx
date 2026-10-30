@@ -39,7 +39,6 @@ static void nav_thread_entry(ULONG arg)
             continue;
         }
 
-        /* ponytail: 每次读取仅取首个完整帧；跨次半帧需增加流式重组。 */
         for (uint32_t i = 0; i + NAV_FRAME_RX_SIZE <= rx_len; i++)
         {
             if (buf[i] == NAV_RX_HEADER && Verify_CRC16_Check_Sum(&buf[i], NAV_FRAME_RX_SIZE))
