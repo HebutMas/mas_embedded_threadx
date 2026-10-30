@@ -79,9 +79,9 @@ static void robot_control_task(ULONG thread_input)
         vision_receive_packet = Module_Vision_Receive();
         /*导航数据接收包*/
         nav_receive_packet = Module_Nav_Receive();
-        /* 视觉与导航独立处理 */
+        /* 先由 NAV 确定模式，再处理视觉；道路对齐期间禁止拨盘发射。 */
+        nav_auto_func(&chassis_cmd, &gimbal_cmd, nav_receive_packet);
         gimbal_auto_func(&shoot_cmd, &gimbal_cmd, ins, vision_receive_packet);
-        nav_auto_func(&chassis_cmd, nav_receive_packet);
         /* 云台控制 */
         const uint8_t yaw_ecd_valid = gimbal_func(&gimbal_cmd, &yaw_ecd);
         /* 发射机构控制 */

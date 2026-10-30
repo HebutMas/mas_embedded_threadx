@@ -127,6 +127,8 @@ void usb_recv_task(ULONG unused)
 
 `cdc_read_buffer[i]`（USB_NOCACHE_RAM_SECTION，放在 Cache 不缓存区域）直接作为第 i 个串口 kfifo 的底层 buffer：
 
+H723 的 `.RAM_D2` 必须配置为 **Normal、不可缓存**（MPU `TEX=1, C=0, B=0`），不能使用 `TEX=0, C=0, B=0` 的 Strongly-ordered 类型。CDC 是字节流，接收分片及 FIFO 索引不保证半字或字对齐；标准 `memcpy` 对 Normal RAM 的合法非对齐访问，在 Strongly-ordered RAM 上会触发 `UNALIGNED`，升级为 HardFault 后由看门狗复位，导致两个虚拟串口同时掉线。缓冲区起始地址对齐不能保证其任意字节偏移也对齐。
+
 ```c
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t cdc_read_buffer[CDC_ACM_PORT_NUM][CDC_RX_FIFO_SIZE];
 kfifo_init(&cdc_ports[i].rx_fifo, cdc_read_buffer[i], CDC_RX_FIFO_SIZE, 1);

@@ -58,8 +58,7 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
         }
         else if (ch6 == SBUS_CHX_BIAS)
         {
-            Gimbal_Ctrl->gimbal_mode   = gimbal_auto_mode;
-            Chassis_Ctrl->chassis_mode = chassis_automode;
+            Gimbal_Ctrl->gimbal_mode = gimbal_auto_mode;
         }
         else if (ch6 == SBUS_CHX_DOWN)
         {
@@ -109,7 +108,16 @@ void RemoteControlSet(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Shoot_Ctrl_Cmd_t *Shoot_
 
 void gimbal_auto_func(Shoot_Ctrl_Cmd_t *Shoot_Ctrl, Gimbal_Ctrl_Cmd_t *Gimbal_Ctrl, const Ins_t *Ins, const VisionReceivePacket *receive_packet)
 {
-    if (Gimbal_Ctrl == NULL || Gimbal_Ctrl->gimbal_mode != gimbal_auto_mode)
+    if (Shoot_Ctrl == NULL || Gimbal_Ctrl == NULL)
+    {
+        return;
+    }
+    if (Gimbal_Ctrl->gimbal_mode == gimbal_gyro_nav_mode)
+    {
+        Shoot_Ctrl->load_mode = load_stop;
+        return;
+    }
+    if (Gimbal_Ctrl->gimbal_mode != gimbal_auto_mode)
     {
         return;
     }
@@ -117,7 +125,7 @@ void gimbal_auto_func(Shoot_Ctrl_Cmd_t *Shoot_Ctrl, Gimbal_Ctrl_Cmd_t *Gimbal_Ct
     if (Module_Vision_Get_offline_state() == STATE_OFFLINE)
     {
         // 离线停止搜索
-        Gimbal_Ctrl->auto_search = 2;
+        Gimbal_Ctrl->auto_search = 1;
         Shoot_Ctrl->load_mode    = load_stop;
         return;
     }
@@ -145,24 +153,43 @@ void gimbal_auto_func(Shoot_Ctrl_Cmd_t *Shoot_Ctrl, Gimbal_Ctrl_Cmd_t *Gimbal_Ct
     }
 }
 
-void nav_auto_func(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, const NavReceivePacket *nav_packet)
+void nav_auto_func(Chassis_Ctrl_Cmd_t *Chassis_Ctrl, Gimbal_Ctrl_Cmd_t *Gimbal_Ctrl, const NavReceivePacket *nav_packet)
 {
-    if (Chassis_Ctrl == NULL || Chassis_Ctrl->chassis_mode != chassis_automode)
+    if (Chassis_Ctrl == NULL || Gimbal_Ctrl == NULL)
+    {
+        return;
+    }
+    if (Gimbal_Ctrl->gimbal_mode == gimbal_gyro_mode || Gimbal_Ctrl->gimbal_mode == gimbal_zero_force)
     {
         return;
     }
 
-    if (Module_Nav_Get_offline_state() == STATE_ONLINE && nav_packet != NULL && nav_packet->nav_state == 1 && isfinite(nav_packet->vx) &&
-        isfinite(nav_packet->vy) && isfinite(nav_packet->w))
+    /* 先验证完整命令，避免无效平移或角度仍开启云台/底盘跟随。 */
+    if (Module_Nav_Get_offline_state() != STATE_ONLINE || nav_packet == NULL || !isfinite(nav_packet->vx) || !isfinite(nav_packet->vy) ||
+        !isfinite(nav_packet->small_yaw_ref) || fabsf(nav_packet->small_yaw_ref) > 180.0f || nav_packet->follow_gimbal > 1)
     {
-        Chassis_Ctrl->vx = nav_packet->vx;
-        Chassis_Ctrl->vy = -nav_packet->vy;
-        Chassis_Ctrl->wz = nav_packet->w;
+        Chassis_Ctrl->vx           = 0.0f;
+        Chassis_Ctrl->vy           = 0.0f;
+        Chassis_Ctrl->wz           = 0.0f;
+        Chassis_Ctrl->chassis_mode = chassis_automode;
+        Gimbal_Ctrl->gimbal_mode   = gimbal_auto_mode;
+        return;
+    }
+
+    if (nav_packet->follow_gimbal == 1)
+    {
+        Chassis_Ctrl->chassis_mode = chassis_follow_gimbal_yaw;
+        Gimbal_Ctrl->gimbal_mode   = gimbal_gyro_nav_mode;
+        Gimbal_Ctrl->yaw           = nav_packet->small_yaw_ref;
+        Gimbal_Ctrl->pitch         = 0;
     }
     else
     {
-        Chassis_Ctrl->vx = 0.0f;
-        Chassis_Ctrl->vy = 0.0f;
-        Chassis_Ctrl->wz = 0.0f;
+        Chassis_Ctrl->chassis_mode = chassis_automode;
+        Gimbal_Ctrl->gimbal_mode   = gimbal_auto_mode;
     }
+
+    Chassis_Ctrl->vx = nav_packet->vx;
+    Chassis_Ctrl->vy = -nav_packet->vy;
+    Chassis_Ctrl->wz = 2.0f;
 }
