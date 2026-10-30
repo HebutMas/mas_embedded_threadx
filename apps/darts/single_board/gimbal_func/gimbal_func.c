@@ -50,6 +50,7 @@ void gimbal_init(void)
         LOG_E("yaw_motor init failed");
         return;
     }
+    Motor_ZDT_SetMode(yaw_motor, ZDT_MODE_POSITION);
     Motor_ZDT_Stop(yaw_motor); /* 上电先失能 */
 
     /* pitch: 3508, 除 LQR 外与左右拉簧轴相同 */
