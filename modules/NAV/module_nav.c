@@ -33,11 +33,7 @@ static void nav_thread_entry(ULONG arg)
 
     while (1)
     {
-        if (cdc_acm_recv(NAV_CDC_PORT, buf, sizeof(buf), &rx_len, TX_NO_WAIT) <= 0)
-        {
-            tx_thread_sleep(1);
-            continue;
-        }
+        cdc_acm_recv(NAV_CDC_PORT, buf, sizeof(buf), &rx_len, TX_WAIT_FOREVER);
 
         for (uint32_t i = 0; i + NAV_FRAME_RX_SIZE <= rx_len; i++)
         {
@@ -49,8 +45,6 @@ static void nav_thread_entry(ULONG arg)
                 break;
             }
         }
-
-        tx_thread_relinquish();
     }
 }
 

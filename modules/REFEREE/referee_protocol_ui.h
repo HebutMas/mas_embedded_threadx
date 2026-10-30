@@ -107,9 +107,9 @@ typedef union __attribute__((packed))
 
 /**
  * 图形配置字3
- * bit[9:0]   details_c  直线/矩形/椭圆终点x / 圆半径 / 浮点/整型低10bit
- * bit[20:10] details_d  直线/矩形/椭圆终点y / 椭圆/弧x半轴 / 浮点/整型中11bit
- * bit[31:21] details_e  椭圆/弧y半轴 / 浮点/整型高11bit
+ * bit[9:0]   details_c  正圆半径 / 浮点、整型数值低 10bit
+ * bit[20:10] details_d  直线/矩形终点（对角顶点）x / 椭圆、圆弧 x 半轴 / 浮点、整型数值中 11bit
+ * bit[31:21] details_e  直线/矩形终点（对角顶点）y / 椭圆、圆弧 y 半轴 / 浮点、整型数值高 11bit
  */
 typedef union __attribute__((packed))
 {

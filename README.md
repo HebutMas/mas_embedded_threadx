@@ -79,7 +79,8 @@ mas_embedded_threadx/
 │
 ├── utils/                         # 通用工具库
 │   ├── ulog/                      # 日志系统（基于 SEGGER RTT）
-│   ├── kfifo/                     # 环形缓冲区
+│   ├── kfifo/                     # 环形缓冲区（SPSC）
+│   ├── mpmc/                      # 有界无锁队（Vyukov MPMC）
 │   └── utils_init.c / .h          # 工具层初始化
 │
 ├── 3rdparty/                      # 第三方依赖（裁剪后仅保留实际使用的部分）

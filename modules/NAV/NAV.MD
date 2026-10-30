@@ -41,8 +41,7 @@ app → Module_Nav_Send() → 帧头 + NavSendPacket + CRC16
 ```
 
 发送仍在调用者线程中执行；NAV 线程负责接收。
-接收线程沿用 `TX_NO_WAIT` 非阻塞读取，无数据时休眠 1 tick。
-每批处理后让出同优先级线程，避免拆分后持续来包时占住 CPU。
+接收线程使用 `TX_WAIT_FOREVER` 阻塞等待 CDC1 数据：有数据即处理，无数据挂起
 
 ### 内部结构
 

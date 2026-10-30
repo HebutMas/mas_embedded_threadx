@@ -129,9 +129,8 @@
    （定义 TX_ENABLE_STACK_CHECKING），则 TX_DISABLE_STACK_FILLING 宏会被否定，
    从而强制启用栈填充（栈检查逻辑依赖栈填充功能）。 */
 
-/*
+
 #define TX_ENABLE_STACK_CHECKING
-*/
 
 /* 决定栈填充是否使用随机数。默认情况下，ThreadX 使用固定模式填充栈。
    当定义以下宏时，ThreadX 使用随机数填充栈。此功能仅在定义了
@@ -178,7 +177,7 @@
 /* 决定 ThreadX 内部代码是否不可中断。此方式可减小代码体积并降低处理开销，
    但会增加中断锁定时间。 */
 
-#define TX_NOT_INTERRUPTABLE
+/* #define TX_NOT_INTERRUPTABLE */
 
 /* 决定是否启用跟踪事件日志功能。此功能会略微增加代码体积和运行开销，
    但可生成系统跟踪信息，供 TraceX 工具查看。 */
