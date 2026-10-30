@@ -18,7 +18,7 @@ set(OFFLINE_TASK_PRIORITY   6)    # 任务优先级
 set(REMOTE_UART             huart3) # 串口
 set(REMOTE_VT_UART          huart1) # 图传串口
 set(REMOTE_SOURCE           1)      # 遥控器选择: 0=none, 1=sbus, 2=dt7
-set(REMOTE_VT_SOURCE        1)      # 图传选择:   0=none, 1=vt02, 2=vt03
+set(REMOTE_VT_SOURCE        0)      # 图传选择:   0=none, 1=vt02, 2=vt03
 set(REMOTE_DEAD_ZONE        10)     # 死区
 set(REMOTE_TASK_STACK_SIZE  1024)   # 任务栈大小
 set(REMOTE_TASK_PRIORITY    9)      # 任务优先级
