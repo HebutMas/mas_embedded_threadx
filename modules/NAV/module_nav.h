@@ -18,10 +18,10 @@
 /* 导航 */
 typedef struct
 {
-    float   vx;        /* 导航速度 x (m/s) */
-    float   vy;        /* 导航速度 y (m/s) */
-    float   w;         /* 底盘角速度 (rad/s)，逆时针为正 */
-    uint8_t nav_state; /* 0:无效, 1:有效 */
+    float   vx;            /* 导航速度 x (m/s) */
+    float   vy;            /* 导航速度 y (m/s) */
+    float   small_yaw_ref; /* 相对当前 LIO 朝向的偏角 (deg)，逆时针为正，[-180, 180] */
+    uint8_t follow_gimbal; /* 0=不跟随，1=请求进入跟随云台模式 */
 } NavReceivePacket;
 
 /* 导航发送: 裁判系统数据 (layout 同 boards 间 ChassisToGimbal_referee_t) */

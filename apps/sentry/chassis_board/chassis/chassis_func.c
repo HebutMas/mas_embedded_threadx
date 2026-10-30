@@ -32,7 +32,7 @@ static uint8_t                       offset_rate_ready;
 static const Chassis_Swerve_Config_s chassis_swerve_config = {
     .align_rad      = {4458 * 0.000767f, 1010 * 0.000767f, 7177 * 0.000767f, 3756 * 0.000767f}, // lf lb rb rf(rad)
     .decele_ratio   = 16.0f,
-    .radius_wheel_m = 0.12f,
+    .radius_wheel_m = 0.06f,
     .wheel_r        = 0.5f,
 };
 
