@@ -273,7 +273,7 @@ static void friction_set_targets(float left_target, float right_target)
     target_r = right_target;
 }
 
-/* 首次出发或掉线恢复时，从实际位置继续推进，避免追赶停机前的旧参考位置。 */
+/* 上电初始化或每发开始时，将参考位置同步到实际位置。 */
 static void friction_sync_refs(void)
 {
     Motor_SetRef((Motor_Base *)left_friction_motor, left_friction_motor->base.measure.total_angle);
@@ -411,7 +411,6 @@ void shoot_func(Shoot_Ctrl_Cmd_t *shoot_cmd, bool remote_online)
     {
         if (!left_friction_motor->base.setting.enableflag || !right_friction_motor->base.setting.enableflag)
         {
-            friction_sync_refs();
             /* 等待期间中断输出后，恢复时给舵机完整的动作时间。 */
             if (axis_state == axis_work_wait) trigger_ready_start_us = BSP_DWT_GetTimeline_us();
         }

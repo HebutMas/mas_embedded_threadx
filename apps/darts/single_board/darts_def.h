@@ -18,11 +18,11 @@
 // ── 3508 同步带拉簧轴 (电机反馈 total_angle 是转子侧, 输出侧=同步轮, 差 gear_ratio(19) 倍) ──
 #define FRICTION_PULLEY_RADIUS_MM 17.0f     /* 同步轮半径, 行程/前馈都按带直线行程 (mm) 给 */
 #define FRICTION_TRAVEL_MM        710.0f    /* 待机位 → 工作位 带行程 = 360° × 2πr/360 (占位换算值) */
-#define FRICTION_FIRST_PULL_MM    689.0f    /* 第2~4发首次下拉位置距本发 home 的带行程(mm)，独立于工作位 */
+#define FRICTION_FIRST_PULL_MM    695.0f    /* 第2~4发首次下拉位置距本发 home 的带行程(mm)，独立于工作位 */
 #define FRICTION_RELOAD_MM        400.0f     /* 回程中停下等拨盘 reload 的带行程 = 100° 换算 (值待定) */
 #define FRICTION_SPRING_START_MM  130.0f      /* 带起点到拉簧开始伸长的空行程 (mm, >=0), 不计入拉簧前馈位移 */
-#define FRICTION_MOVE_STEP          0.5f  /* 同步带全程调速：每周期目标推进量，越小越慢，须 >0；内部按 mm/周期换算 */
-#define FRICTION_FF_K             0.00450f  /* 拉簧前馈 N·m/mm; 带位移为弹簧伸长的2倍, 绳传力再折半, 按每轴1400 N/m折算 */
+#define FRICTION_MOVE_STEP          0.6f  /* 同步带全程调速：每周期目标推进量，越小越慢，须 >0；内部按 mm/周期换算 */
+#define FRICTION_FF_K             0.00350f  /* 拉簧前馈 N·m/mm; 带位移为弹簧伸长的2倍, 绳传力再折半, 按每轴1400 N/m折算 */
 #define FRICTION_RIGHT_SIGN       (-1.0f)   /* 右轴镜像: 只把目标值取反, 反馈/电机反转标志位保持 0 */
 #define FRICTION_POSITION_TOLERANCE_MM  7.0f  /* 非home停点到位: 位置误差绝对值 <= 此值 (mm) */
 #define FRICTION_SPEED_TOLERANCE_MM_S   0.5f /* 非home停点停稳: 速度绝对值 < 此值 (mm/s) */
@@ -46,20 +46,20 @@
 // 转动惯量在弹被取走后变, 所以每转一组增益; 命名 K0_<发>_<转>, 转 1 = 弹取走前 (首次下拉位), 转 2 = 弹取走后
 #define ONE_BULLET_DELTA_ANGLE    60.0f     /* 单发拨盘转角 (输出侧度, 一圈 6 发) */
 #define LOADER_ZERO_OFFSET_DEG    69.0f      /* 拨盘基准 = 电机自身零点 + 此偏置 (输出侧度, 可正可负) */
-/* DM 经验调参（拨盘惯量待辨识）：提高位置刚度，K1 近似按 sqrt(K0) 增大以维持阻尼比。
- * 静止且原目标已到位时，60° 阶跃初始位置力矩 ≈ 8.38 N·m，低于 10 N·m 限幅。 */
-#define LOADER_LQR_K0_2_1         8.0f      /* 第 2 发转 1 */
-#define LOADER_LQR_K1_2_1         0.72f     /* 第 2 发转 1 */
-#define LOADER_LQR_K0_2_2         8.0f      /* 第 2 发转 2 */
-#define LOADER_LQR_K1_2_2         0.72f     /* 第 2 发转 2 */
-#define LOADER_LQR_K0_3_1         8.0f      /* 第 3 发转 1 */
-#define LOADER_LQR_K1_3_1         0.72f     /* 第 3 发转 1 */
-#define LOADER_LQR_K0_3_2         8.0f      /* 第 3 发转 2 */
-#define LOADER_LQR_K1_3_2         0.72f     /* 第 3 发转 2 */
-#define LOADER_LQR_K0_4_1         8.0f      /* 第 4 发转 1 */
-#define LOADER_LQR_K1_4_1         0.72f     /* 第 4 发转 1 */
-#define LOADER_LQR_K0_4_2         8.0f      /* 第 4 发转 2 */
-#define LOADER_LQR_K1_4_2         0.72f     /* 第 4 发转 2 */
+/* 4310 拨盘离散 LQR：0.75 kg、半径 0.10 m 的均匀圆盘，Ts=2 ms；只增大位置 Q。
+ * 惯量/摩擦未实测；60° 阶跃起步会触及现有 10 N·m 限幅。 */
+#define LOADER_LQR_K0_2_1         15.825303f /* 第 2 发转 1 */
+#define LOADER_LQR_K1_2_1         0.753083f  /* 第 2 发转 1 */
+#define LOADER_LQR_K0_2_2         15.825303f /* 第 2 发转 2 */
+#define LOADER_LQR_K1_2_2         0.753083f  /* 第 2 发转 2 */
+#define LOADER_LQR_K0_3_1         15.825303f /* 第 3 发转 1 */
+#define LOADER_LQR_K1_3_1         0.753083f  /* 第 3 发转 1 */
+#define LOADER_LQR_K0_3_2         15.825303f /* 第 3 发转 2 */
+#define LOADER_LQR_K1_3_2         0.753083f  /* 第 3 发转 2 */
+#define LOADER_LQR_K0_4_1         15.825303f /* 第 4 发转 1 */
+#define LOADER_LQR_K1_4_1         0.753083f  /* 第 4 发转 1 */
+#define LOADER_LQR_K0_4_2         15.825303f /* 第 4 发转 2 */
+#define LOADER_LQR_K1_4_2         0.753083f  /* 第 4 发转 2 */
 
 // ── 云台 (yaw = ZDT 闭环步进 / CAN2 扩展帧, pitch = 3508 / CAN1 id 2) ──
 #define GIMBAL_YAW_PULSES_PER_REV 3200.0f  /* yaw 输出轴一圈的脉冲数 = 200 × 细分 × 减速比 (Emm42 出厂 16 细分 = 3200), 待确认 */
