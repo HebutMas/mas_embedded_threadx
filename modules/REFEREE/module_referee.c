@@ -77,7 +77,7 @@ static void referee_task_entry(ULONG arg)
 
             // 取 data_length，并做合法性检查
             uint16_t data_length = (uint16_t)(p[1] | (p[2] << 8));
-            if (data_length > 118u)
+            if (data_length > REFEREE_REGULAR_DATA_MAX_LEN)
             {
                 idx++;
                 continue;
@@ -106,39 +106,39 @@ static void referee_task_entry(ULONG arg)
             uint16_t       cmd_id  = (uint16_t)(p[5] | (p[6] << 8));
             const uint8_t *payload = p + FRAME_HEADER_LEN + CMD_ID_LEN;
 
-            // 各命令数据长度须不小于本地结构体，避免越界读取帧外数据
+            // 固定长度命令须与2027协议结构体完全一致，拒绝旧版或异常长度
             switch (cmd_id)
             {
             case CMD_ID_GAME_STATUS:
-                if (data_length < sizeof(game_status_t)) break;
+                if (data_length != sizeof(game_status_t)) break;
                 memcpy(&module_referee.game_status, payload, sizeof(game_status_t));
                 break;
             case CMD_ID_ROBOT_HP:
-                if (data_length < sizeof(robot_hp_data_t)) break;
+                if (data_length != sizeof(robot_hp_data_t)) break;
                 memcpy(&module_referee.robot_hp, payload, sizeof(robot_hp_data_t));
                 break;
             case CMD_ID_ROBOT_STATUS:
-                if (data_length < sizeof(robot_status_t)) break;
+                if (data_length != sizeof(robot_status_t)) break;
                 memcpy(&module_referee.robot_status, payload, sizeof(robot_status_t));
                 break;
             case CMD_ID_POWER_HEAT_DATA:
-                if (data_length < sizeof(power_heat_data_t)) break;
+                if (data_length != sizeof(power_heat_data_t)) break;
                 memcpy(&module_referee.power_heat, payload, sizeof(power_heat_data_t));
                 break;
             case CMD_ID_BUFF_DATA:
-                if (data_length < sizeof(buff_t)) break;
+                if (data_length != sizeof(buff_t)) break;
                 memcpy(&module_referee.buff, payload, sizeof(buff_t));
                 break;
             case CMD_ID_SHOOT_DATA:
-                if (data_length < sizeof(shoot_data_t)) break;
+                if (data_length != sizeof(shoot_data_t)) break;
                 memcpy(&module_referee.shoot_data, payload, sizeof(shoot_data_t));
                 break;
             case CMD_ID_ALLOWED_BULLET:
-                if (data_length < sizeof(allowed_bullet_t)) break;
+                if (data_length != sizeof(allowed_bullet_t)) break;
                 memcpy(&module_referee.allowed_bullet, payload, sizeof(allowed_bullet_t));
                 break;
             case CMD_ID_SENTRY_AUTO_SYNC:
-                if (data_length < sizeof(sentry_auto_sync_t)) break;
+                if (data_length != sizeof(sentry_auto_sync_t)) break;
                 memcpy(&module_referee.sentry_sync, payload, sizeof(sentry_auto_sync_t));
                 break;
             default:
@@ -169,7 +169,7 @@ int Module_Referee_Init(void)
         LOG_E("offline device register error");
         return -1;
     }
-    
+
     module_referee.initialized = 1;
 
     /* 创建裁判系统数据接收线程 */
@@ -197,10 +197,8 @@ static uint16_t get_sender_client_id(void)
 
     switch (robot_id)
     {
-    case ROBOT_ID_RED_HERO:
-        return CLIENT_ID_RED_HERO;
-    case ROBOT_ID_RED_ENGINEER:
-        return CLIENT_ID_RED_ENGINEER;
+    case ROBOT_ID_RED_HEAVY:
+        return CLIENT_ID_RED_HEAVY;
     case ROBOT_ID_RED_INFANTRY_3:
         return CLIENT_ID_RED_INFANTRY_3;
     case ROBOT_ID_RED_INFANTRY_4:
@@ -209,10 +207,8 @@ static uint16_t get_sender_client_id(void)
         return CLIENT_ID_RED_INFANTRY_5;
     case ROBOT_ID_RED_AIR:
         return CLIENT_ID_RED_AIR;
-    case ROBOT_ID_BLUE_HERO:
-        return CLIENT_ID_BLUE_HERO;
-    case ROBOT_ID_BLUE_ENGINEER:
-        return CLIENT_ID_BLUE_ENGINEER;
+    case ROBOT_ID_BLUE_HEAVY:
+        return CLIENT_ID_BLUE_HEAVY;
     case ROBOT_ID_BLUE_INFANTRY_3:
         return CLIENT_ID_BLUE_INFANTRY_3;
     case ROBOT_ID_BLUE_INFANTRY_4:
@@ -228,7 +224,7 @@ static uint16_t get_sender_client_id(void)
 
 void Module_Referee_Send_Interaction(uint16_t sub_cmd_id, const void *payload, uint16_t payload_len, uint32_t timeout)
 {
-    if (module_referee.initialized == 0 || payload == NULL || payload_len == 0 || payload_len > 112u) return;
+    if (module_referee.initialized == 0 || payload == NULL || payload_len == 0 || payload_len > REFEREE_USER_DATA_MAX_LEN) return;
 
     /* 发送频率限制（10Hz）：未达到发送间隔则直接返回 */
     {
