@@ -2,7 +2,7 @@
  * @file        vofa.h
  * @brief       VOFA (Visualization of Floats Add-on) 串口波形协议模块
  *              协议核心 + 模块入口(Module_VOFA_Init 建 RX/TX 双线程)
- *              配置宏见下方顶部 VOFA_UART / VOFA_FORMAT / VOFA_TX_INTERVAL_MS
+ *              配置参数由 module_config.h 注入(见 module_config.cmake / robot.cmake)
  */
 #ifndef _VOFA_H_
 #define _VOFA_H_
@@ -11,64 +11,29 @@
 #include <stddef.h>
 #include "bsp_uart.h"
 
-/* ================================================================
- *                  █ 模块配置 (最显眼处, 按需覆盖)
- *
- * 默认值可直接改这里; 也可经 apps/<robot>/robot.cmake 的 set()
- * 注入 module_config.h 覆盖(define 同名宏会先于此生效).
- * ================================================================ */
-
-/* 使用的串口句柄 */
-#ifndef VOFA_UART
-#define VOFA_UART huart6
-#endif
-
-/* 协议格式: 0 = JustFloat(二进制), 1 = FireWater(文本) */
-#ifndef VOFA_FORMAT
-#define VOFA_FORMAT 0
-#endif
-
-/* FireWater 文本协议的前缀字符串 */
-#ifndef VOFA_FIREWATER_PREFIX
-#define VOFA_FIREWATER_PREFIX "vofa:"
-#endif
-
-/* TX 发送周期(ms): 模块发送线程每隔该时长自动调用 VOFA_Send() 一次 */
-#ifndef VOFA_TX_INTERVAL_MS
-#define VOFA_TX_INTERVAL_MS 10
-#endif
-
-/* RX/TX 线程栈与优先级 */
-#ifndef VOFA_TASK_STACK_SIZE
-#define VOFA_TASK_STACK_SIZE 1024
-#endif
-#ifndef VOFA_TASK_PRIORITY
-#define VOFA_TASK_PRIORITY 11
-#endif
-
 /* ========== 内部参数 ========== */
-#define VOFA_STRING_DATA_LEN        20          // 字符串数据长度(参数名)
-#define VOFA_TX_BUFFER_SIZE         64          // 发送缓冲区大小
+#define VOFA_STRING_DATA_LEN 20 // 字符串数据长度(参数名)
+#define VOFA_TX_BUFFER_SIZE  64 // 发送缓冲区大小
 
 /* ========== 返回状态 ========== */
 typedef enum
 {
-    VOFA_OK   = 0,
-    VOFA_ERR  = 1,
+    VOFA_OK  = 0,
+    VOFA_ERR = 1,
 } vofa_err_t;
 
 /* ========== VOFA协议格式定义 (与 VOFA_FORMAT 宏对应) ========== */
 typedef enum
 {
-    VOFA_FORMAT_JUSTFLOAT = 0,  // just float格式: 浮点数数组 + 帧尾
-    VOFA_FORMAT_FIREWATER = 1   // fire water格式: 字符串前缀 + sprintf格式化浮点数
+    VOFA_FORMAT_JUSTFLOAT = 0, // just float格式: 浮点数数组 + 帧尾
+    VOFA_FORMAT_FIREWATER = 1  // fire water格式: 字符串前缀 + sprintf格式化浮点数
 } VOFA_Format;
 
 /* ========== VOFA帧定义 ========== */
-#define VOFA_JUSTFLOAT_TAIL_LEN     4           // just float帧尾长度
-#define VOFA_JUSTFLOAT_TAIL         {0x00,0x00,0x80,0x7f}  // just float帧尾
-#define VOFA_FIREWATER_MAX_LEN      50          // fire water缓冲区大小
-#define VOFA_JUSTFLOAT_MAX_LEN      50          // just float缓冲区大小
+#define VOFA_JUSTFLOAT_TAIL_LEN 4                        // just float帧尾长度
+#define VOFA_JUSTFLOAT_TAIL     {0x00, 0x00, 0x80, 0x7f} // just float帧尾
+#define VOFA_FIREWATER_MAX_LEN  50                       // fire water缓冲区大小
+#define VOFA_JUSTFLOAT_MAX_LEN  50                       // just float缓冲区大小
 
 /* 接收回调类型 */
 typedef void (*VOFA_RxCallback)(void);

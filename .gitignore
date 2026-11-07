@@ -3,7 +3,7 @@ build/
 build_*/
 cmake-build-*/
 .cache/
-
+.agents
 # 调试文件
 *.log
 *.tmp
@@ -13,3 +13,6 @@ cmake-build-*/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+.vscode/
+.claude/

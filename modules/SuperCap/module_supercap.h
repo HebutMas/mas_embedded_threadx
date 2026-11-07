@@ -51,7 +51,7 @@ typedef struct
     Offline_Device    *offline_dev;  // 离线设备
 } Module_SuperCap_t;
 
-void Module_SuperCap_Init(void);
+int Module_SuperCap_Init(void);
 
 void Module_SuperCap_Send(const SuperCap_Send_t *data);
 

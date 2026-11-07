@@ -18,8 +18,11 @@
 #define ONE_BULLET_DELTA_ANGLE         60.0f          // 发射一发弹丸拨盘转动的距离,由机械设计图纸给出
 #define NUM_PER_CIRCLE                 6              // 拨盘一圈的装载量
 
-#define GRAVITY_GAMMA 1.58f                              // 重力前馈补偿项
-#define GRAVITY_K_PITCH -0.49f                           // pitch轴重力前馈系数
+#define GRAVITY_K                 0.8f   // 重力前馈幅值 Mgl (Nm)，云台臂水平时的最大重力矩
+#define GRAVITY_TORQUE_BIAS  0.4f    // pitch 轴实测恒定负载 (Nm)
+#define FRICTION_TORQUE       0.78f  /* 库仑摩擦力矩 Nm */
+#define FRICTION_ERR_EPS      0.005f  /* 死区外平滑过渡，越大越软 */
+
 // clang-format on
 
 #pragma pack(1)
@@ -30,6 +33,7 @@ typedef enum
     gimbal_zero_force = 0, /* 云台停止模式 */
     gimbal_gyro_mode,      /*云台控制模式*/
     gimbal_auto_mode,      /*云台自动模式*/
+    gimbal_gyro_nav_mode   /*导航控制模式*/
 } gimbal_mode_e;
 
 typedef struct
@@ -90,7 +94,7 @@ typedef struct
 {
     int16_t vx;           /* 底盘系 X 速度, mm/s */
     int16_t vy;           /* 底盘系 Y 速度, mm/s */
-    int8_t  wz;           /* 旋转速度, -10 ～ +10 */
+    int8_t  wz;           /* 底盘角速度，0.1 rad/s，逆时针为正 */
     int16_t offset_angle; /* yaw偏移角度 */
     uint8_t chassis_mode; /* 底盘控制指令 (chassis_mode_e) */
 } GimbalToChassis_cmd_t;

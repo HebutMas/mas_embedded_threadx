@@ -5,7 +5,6 @@
 #include "crc_rm.h"
 #include <string.h>
 #include "bsp_uart.h"
-#include "module_offline.h"
 #include "referee_protocol.h"
 #include "robot_def.h"
 #include "usart.h"
@@ -49,26 +48,22 @@ BUFFER_SECTION static uint8_t     tx_buffer[256];
 
 static void referee_task_entry(ULONG arg)
 {
+    (void)arg;
+    static uint8_t rx_buf[512];
+    uint32_t       rx_len = 0;
+
     while (1)
     {
-        if (!module_referee.initialized)
-        {
-            tx_thread_sleep(100);
-            return;
-        }
-        static uint8_t rx_buf[512];
-        uint32_t       rx_len = 0;
-
         BSP_UART_Read(module_referee.uart_dev, rx_buf, sizeof(rx_buf), &rx_len, TX_WAIT_FOREVER);
-        if (rx_len == 0) return;
+        if (rx_len == 0) continue;
 
-        uint16_t       idx     = 0;
+        uint32_t       idx     = 0;
         const uint16_t MIN_LEN = FRAME_HEADER_LEN + CMD_ID_LEN + FRAME_TAIL_LEN;
 
         while (idx < rx_len)
         {
             const uint8_t *p   = rx_buf + idx;
-            uint16_t       rem = rx_len - idx;
+            uint32_t       rem = rx_len - idx;
 
             // 最短帧长检查，不足则退出
             if (rem < MIN_LEN) break;
@@ -82,13 +77,13 @@ static void referee_task_entry(ULONG arg)
 
             // 取 data_length，并做合法性检查
             uint16_t data_length = (uint16_t)(p[1] | (p[2] << 8));
-            if (data_length > 118u)
+            if (data_length > REFEREE_REGULAR_DATA_MAX_LEN)
             {
                 idx++;
                 continue;
             }
 
-            // 帧完整性检查：数据不足则等待下次
+            // 帧完整性检查：本次剩余不足则丢弃，下次读取重新对齐帧头
             uint16_t frame_len = FRAME_HEADER_LEN + CMD_ID_LEN + data_length + FRAME_TAIL_LEN;
             if (rem < frame_len) break;
 
@@ -111,30 +106,39 @@ static void referee_task_entry(ULONG arg)
             uint16_t       cmd_id  = (uint16_t)(p[5] | (p[6] << 8));
             const uint8_t *payload = p + FRAME_HEADER_LEN + CMD_ID_LEN;
 
+            // 固定长度命令须与2027协议结构体完全一致，拒绝旧版或异常长度
             switch (cmd_id)
             {
             case CMD_ID_GAME_STATUS:
+                if (data_length != sizeof(game_status_t)) break;
                 memcpy(&module_referee.game_status, payload, sizeof(game_status_t));
                 break;
             case CMD_ID_ROBOT_HP:
+                if (data_length != sizeof(robot_hp_data_t)) break;
                 memcpy(&module_referee.robot_hp, payload, sizeof(robot_hp_data_t));
                 break;
             case CMD_ID_ROBOT_STATUS:
+                if (data_length != sizeof(robot_status_t)) break;
                 memcpy(&module_referee.robot_status, payload, sizeof(robot_status_t));
                 break;
             case CMD_ID_POWER_HEAT_DATA:
+                if (data_length != sizeof(power_heat_data_t)) break;
                 memcpy(&module_referee.power_heat, payload, sizeof(power_heat_data_t));
                 break;
             case CMD_ID_BUFF_DATA:
+                if (data_length != sizeof(buff_t)) break;
                 memcpy(&module_referee.buff, payload, sizeof(buff_t));
                 break;
             case CMD_ID_SHOOT_DATA:
+                if (data_length != sizeof(shoot_data_t)) break;
                 memcpy(&module_referee.shoot_data, payload, sizeof(shoot_data_t));
                 break;
             case CMD_ID_ALLOWED_BULLET:
+                if (data_length != sizeof(allowed_bullet_t)) break;
                 memcpy(&module_referee.allowed_bullet, payload, sizeof(allowed_bullet_t));
                 break;
             case CMD_ID_SENTRY_AUTO_SYNC:
+                if (data_length != sizeof(sentry_auto_sync_t)) break;
                 memcpy(&module_referee.sentry_sync, payload, sizeof(sentry_auto_sync_t));
                 break;
             default:
@@ -148,7 +152,7 @@ static void referee_task_entry(ULONG arg)
     }
 }
 
-void Module_Referee_Init()
+int Module_Referee_Init(void)
 {
     UART_Device_init_config config = {
         .huart = &REFEREE_UART, .expected_rx_len = 0, .rx_buf = rx_buffer, .rx_buf_size = 1024, .tx_mode = UART_MODE_DMA, .rx_mode = UART_MODE_DMA};
@@ -156,28 +160,31 @@ void Module_Referee_Init()
     if (module_referee.uart_dev == NULL)
     {
         LOG_E("uart device init error");
-        return;
+        return -1;
     }
     Offline_Init_config_t offlineconfig = {.name = "referee", .beep_times = 10, .enable = REFEREE_OFFLINE_ENABLE, .timeout_ms = 100};
     module_referee.offline_dev          = Module_Offline_register(&offlineconfig);
     if (module_referee.offline_dev == NULL)
     {
         LOG_E("offline device register error");
-        return;
+        return -1;
     }
+
+    module_referee.initialized = 1;
 
     /* 创建裁判系统数据接收线程 */
     UINT status = tx_thread_create(&referee_thread, "referee_thread", referee_task_entry, 0, referee_thread_stack, REFEREE_TASK_STACK_SIZE,
                                    REFEREE_TASK_PRIORITY, REFEREE_TASK_PRIORITY, TX_NO_TIME_SLICE, TX_AUTO_START);
     if (status != TX_SUCCESS)
     {
+        module_referee.initialized = 0;
         LOG_E("thread create error: %u", status);
-        return;
+        return -1;
     }
 
-    module_referee.initialized = 1;
-
     LOG_I("module referee initialized");
+
+    return 0;
 }
 
 /* 根据 robot_id 获取自身 client ID */
@@ -190,10 +197,8 @@ static uint16_t get_sender_client_id(void)
 
     switch (robot_id)
     {
-    case ROBOT_ID_RED_HERO:
-        return CLIENT_ID_RED_HERO;
-    case ROBOT_ID_RED_ENGINEER:
-        return CLIENT_ID_RED_ENGINEER;
+    case ROBOT_ID_RED_HEAVY:
+        return CLIENT_ID_RED_HEAVY;
     case ROBOT_ID_RED_INFANTRY_3:
         return CLIENT_ID_RED_INFANTRY_3;
     case ROBOT_ID_RED_INFANTRY_4:
@@ -202,10 +207,8 @@ static uint16_t get_sender_client_id(void)
         return CLIENT_ID_RED_INFANTRY_5;
     case ROBOT_ID_RED_AIR:
         return CLIENT_ID_RED_AIR;
-    case ROBOT_ID_BLUE_HERO:
-        return CLIENT_ID_BLUE_HERO;
-    case ROBOT_ID_BLUE_ENGINEER:
-        return CLIENT_ID_BLUE_ENGINEER;
+    case ROBOT_ID_BLUE_HEAVY:
+        return CLIENT_ID_BLUE_HEAVY;
     case ROBOT_ID_BLUE_INFANTRY_3:
         return CLIENT_ID_BLUE_INFANTRY_3;
     case ROBOT_ID_BLUE_INFANTRY_4:
@@ -221,7 +224,7 @@ static uint16_t get_sender_client_id(void)
 
 void Module_Referee_Send_Interaction(uint16_t sub_cmd_id, const void *payload, uint16_t payload_len, uint32_t timeout)
 {
-    if (module_referee.initialized == 0 || payload == NULL || payload_len == 0 || payload_len > 112u) return;
+    if (module_referee.initialized == 0 || payload == NULL || payload_len == 0 || payload_len > REFEREE_USER_DATA_MAX_LEN) return;
 
     /* 发送频率限制（10Hz）：未达到发送间隔则直接返回 */
     {

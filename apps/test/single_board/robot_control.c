@@ -40,17 +40,18 @@ static void test_loop_task_entry(ULONG arg)
 
 /* ========== 入口 ========== */
 
-void robot_control_init(void)
+int robot_control_init(void)
 {
     /* 主循环任务 (模块注册需在 MODULE_Init 之后, 此处即可) */
-    UINT status = tx_thread_create(&g_test_loop_thread, "test_loop", test_loop_task_entry, 0,
-                                   g_test_loop_stack, sizeof(g_test_loop_stack),
-                                   8, 8, TX_NO_TIME_SLICE, TX_AUTO_START);
+    UINT status = tx_thread_create(&g_test_loop_thread, "test_loop", test_loop_task_entry, 0, g_test_loop_stack, sizeof(g_test_loop_stack), 8, 8,
+                                   TX_NO_TIME_SLICE, TX_AUTO_START);
     if (status != TX_SUCCESS)
     {
         LOG_E("test loop thread create failed (0x%02x)", status);
-        return;
+        return -1;
     }
 
     LOG_I("test robot init done");
+
+    return 0;
 }

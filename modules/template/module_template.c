@@ -87,6 +87,7 @@ int Module_Template_Init(void)
     /* 硬件初始化 */
     if (template_hw_init() != 0)
     {
+        LOG_E("hw init failed");
         return -1;
     }
 

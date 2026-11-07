@@ -61,7 +61,8 @@ mas_embedded_threadx/
 │   ├── INS/                       # 惯性导航系统
 │   ├── REFEREE/                   # 裁判系统通信
 │   ├── MOTOR/                     # 电机控制
-│   ├── VISION/                    # 视觉通信模块
+│   ├── VISION/                    # 上位机自瞄通信模块
+│   ├── NAV/                       # 上位机导航通信模块
 │   ├── BOARDCOMM/                 # 板间通信
 │   ├── SuperCap/                  # 超级电容管理
 │   ├── WT606/                     # WT606 模块
@@ -78,11 +79,13 @@ mas_embedded_threadx/
 │
 ├── utils/                         # 通用工具库
 │   ├── ulog/                      # 日志系统（基于 SEGGER RTT）
-│   ├── kfifo/                     # 环形缓冲区
+│   ├── kfifo/                     # 环形缓冲区（SPSC）
+│   ├── mpmc/                      # 有界无锁队（Vyukov MPMC）
 │   └── utils_init.c / .h          # 工具层初始化
 │
-├── CMSIS-DSP/                     # ARM CMSIS-DSP 数学库
-├── CherryUSB/                     # CherryUSB 设备协议栈
+├── 3rdparty/                      # 第三方依赖（裁剪后仅保留实际使用的部分）
+│   ├── CMSIS-DSP/                 # ARM CMSIS-DSP 数学库（sin/cos/sqrt + f32 矩阵）
+│   └── CherryUSB/                 # CherryUSB 设备协议栈（DWC2 + CDC ACM）
 │
 ├── .clang-format                  # 代码格式化配置
 ├── .clang-tidy                    # 静态检查配置
@@ -100,20 +103,14 @@ git clone git@github.com:HebutMas/mas_embedded_threadx.git // ssh
 
 ### 选择机器人和板型
 
-编辑 `apps/config.cmake` 中的默认值：
+编辑 `apps/config.cmake` 中的配置值：
 
 ```cmake
-set(ROBOT "sentry" CACHE STRING "Target robot")  # hero / engineer / infantry3 / infantry4 / infantry5 / drone / sentry / darts / customcontrol
-set(BOARD "gimbal" CACHE STRING "Board role")    # single / gimbal / chassis
+set(ROBOT "sentry")  # hero / engineer / infantry3 / infantry4 / infantry5 / drone / sentry / darts / customcontrol
+set(BOARD "chassis") # single / gimbal / chassis
 ```
 
-也可不改文件，配置时用命令行覆盖（缓存变量，适合 CI 和多配置切换）：
-
-```bash
-cmake -S board/dji_c -B build/dji_c/Debug --preset Debug -DROBOT=infantry3 -DBOARD=single
-```
-
-> 注意：已配置过的 build 目录以缓存值为准，切换时用 `-DROBOT=...` 覆盖或删除 build 目录。
+构建任务和手动配置都会直接读取该文件。修改后重新运行编译即可。
 
 ### 编译
 
@@ -218,6 +215,47 @@ find . -name '*.c' -o -name '*.h' | xargs clang-format -i
    - `gimbal_board/` —— 云台板
    - `chassis_board/` —— 底盘板
 4. 在 `apps/config.cmake` 中将新机器人加入注释说明
+
+### 任务优先级设置建议
+
+ThreadX 的优先级数值越小越高（0 最高，Idle 固定为 31）。本项目所有线程均为 `TX_NO_TIME_SLICE`：同优先级线程之间**不会相互抢占**，正在运行的线程只有在阻塞或主动让出后，调度器才会按 FIFO 选择下一个同优先级线程。因此**新增线程时不要复用下表中已有的优先级**。
+
+#### 当前优先级分配
+
+| 优先级 | 线程 | 周期 / 触发 | 
+|---|---|---|
+| 3 | CAN RX | 1 kHz | 
+| 4 | CAN TX | 500 Hz | 
+| 7 | INS | 1 kHz | 
+| 8 | robot_control | 500 Hz | 
+| 9 | WT606 | 1 kHz | 
+| 10 | VT02 / VT03 | ~10 ms | 
+| 11 | Vision | 200–500 Hz | 
+| 12 | SBUS / DT7 | 7–14 ms 帧 | 
+| 13 | NAV | <100 Hz | 
+| 14 | Referee | 实时 |
+| 15 | NRF24L01 | 10 ms | 
+| 16 | LORA / VOFA | 10–50 ms | 
+| 30（仅高于 Idle 31） | Offline Detect | 100 Hz | 
+
+#### 设置原则
+
+1. **优先级设置**。没有明确周期/超时要求的线程不应高于 9
+2. **不要同优先级**。`TX_NO_TIME_SLICE` 下同优先级不抢占，只会在阻塞时切换
+3. **阻塞线程不要设得比控制环高**。串口/USB 解析线程阻塞等事件，本身不占 CPU，提高优先级只会让它在醒来时打断控制
+4. **单板/云台板/底盘板保持一致**。同一兵种不同板型的控制线程优先级必须相同
+
+#### 电机控制循环约定
+
+启用 `MODULE_MOTOR` 的应用必须在自己的控制线程中按顺序调用：
+
+```c
+Motor_ControlAll();      /* 控制计算 */
+PowerControl_Update();   /* 功率限制 */
+Motor_ApplyAll();        /* CAN 下发 */
+```
+
+漏掉这三行会导致电机不输出；新增兵种/板型时请从 `apps/templates/<board>/robot_control.c` 复制。
 
 ### Git 工作流建议
 

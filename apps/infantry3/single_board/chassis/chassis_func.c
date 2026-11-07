@@ -16,7 +16,7 @@ static float                       chassis_vx, chassis_vy, chassis_wz; // 将云
 static PIDInstance                 chassis_follow_pid;
 static const Chassis_Diff_Config_s chassis_diff_config = {.decele_ratio = 16.0f, .wheel_base_x = 0.5, .wheel_base_y = 0.3, .wheel_radius = 0.075};
 
-void chassis_init(void)
+int chassis_init(void)
 {
     PID_Init_Config_s config = {
         .MaxOut = 5, .IntegralLimit = 0.01, .DeadBand = 10, .Kp = 0.1, .Ki = 0, .Kd = 0.001, .Improve = 0x01}; // enable integratiaon limit
@@ -51,57 +51,59 @@ void chassis_init(void)
 
     PowerCtrl_Param_t power_config = {.k1 = 0.132, .k2 = 3.47, .k3 = 1};
 
-    chassis_motor_config.transport_config.can.tx_id             = 1;
-    chassis_motor_config.setting_init_config.motor_reverse_flag = 0;
+    chassis_motor_config.transport_config.can.tx_id             = 4;
+    chassis_motor_config.setting_init_config.motor_reverse_flag = 1;
     chassis_motor_config.offline_init_config.name               = "m3508_1";
     chassis_motor_config.offline_init_config.beep_times         = 1;
     chassis_motors[0]                                           = Motor_DJI_Init(&chassis_motor_config);
     if (chassis_motors[0] == NULL)
     {
         LOG_E("chassis motor[0] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[0]->base, PC_ROLE_DRIVE, power_config);
 
-    chassis_motor_config.transport_config.can.tx_id             = 2;
-    chassis_motor_config.setting_init_config.motor_reverse_flag = 0;
+    chassis_motor_config.transport_config.can.tx_id             = 1;
+    chassis_motor_config.setting_init_config.motor_reverse_flag = 1;
     chassis_motor_config.offline_init_config.name               = "m3508_2";
     chassis_motor_config.offline_init_config.beep_times         = 2;
     chassis_motors[1]                                           = Motor_DJI_Init(&chassis_motor_config);
     if (chassis_motors[1] == NULL)
     {
         LOG_E("chassis motor[1] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[1]->base, PC_ROLE_DRIVE, power_config);
 
-    chassis_motor_config.transport_config.can.tx_id             = 3;
-    chassis_motor_config.setting_init_config.motor_reverse_flag = 1;
+    chassis_motor_config.transport_config.can.tx_id             = 2;
+    chassis_motor_config.setting_init_config.motor_reverse_flag = 0;
     chassis_motor_config.offline_init_config.name               = "m3508_3";
     chassis_motor_config.offline_init_config.beep_times         = 3;
     chassis_motors[2]                                           = Motor_DJI_Init(&chassis_motor_config);
     if (chassis_motors[2] == NULL)
     {
         LOG_E("chassis motor[2] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[2]->base, PC_ROLE_DRIVE, power_config);
 
-    chassis_motor_config.transport_config.can.tx_id             = 4;
-    chassis_motor_config.setting_init_config.motor_reverse_flag = 1;
+    chassis_motor_config.transport_config.can.tx_id             = 3;
+    chassis_motor_config.setting_init_config.motor_reverse_flag = 0;
     chassis_motor_config.offline_init_config.name               = "m3508_4";
     chassis_motor_config.offline_init_config.beep_times         = 4;
     chassis_motors[3]                                           = Motor_DJI_Init(&chassis_motor_config);
     if (chassis_motors[3] == NULL)
     {
         LOG_E("chassis motor[3] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[3]->base, PC_ROLE_DRIVE, power_config);
 
     PowerControl_SetLimit(120, 60, 0);
 
     LOG_I("Chassis initialized");
+
+    return 0;
 }
 
 void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
@@ -135,11 +137,11 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
                 chassis_wz = -8;
                 break;
             case chassis_follow_gimbal_yaw: // 跟随云台
-                PIDCalculate(&chassis_follow_pid, chassis_cmd->offset_angle, 0);
+                PIDCalculate(&chassis_follow_pid, -chassis_cmd->offset_angle, 0);
                 chassis_wz = chassis_follow_pid.Output;
                 break;
-            case chassis_rotate: // 自旋,同时保持全向机动
-                chassis_wz = 3;
+            case chassis_rotate: // 小陀螺: 固定 0.2转/s 自旋 + 全向移动 (0.2 * 2π ≈ 1.257 rad/s)
+                chassis_wz = 0.2f * 2.0f * (float)PI;
                 break;
             default:
                 break;

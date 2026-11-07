@@ -193,14 +193,14 @@ static void wt606_task_entry(ULONG arg)
     }
 }
 
-void Module_WT606_Init(void)
+int Module_WT606_Init(void)
 {
     // 重新初始化 UART
     WT606_UART.Init.BaudRate = 921600;
     if (HAL_UART_Init(&WT606_UART) != HAL_OK)
     {
         LOG_E("uart init error");
-        return;
+        return -1;
     }
 
     UART_Device_init_config config = {
@@ -215,7 +215,7 @@ void Module_WT606_Init(void)
     if (wt606_device.uart_dev == NULL)
     {
         LOG_E("uart device init error");
-        return;
+        return -1;
     }
 
     Offline_Init_config_t offlineconfig = {
@@ -228,18 +228,20 @@ void Module_WT606_Init(void)
     if (wt606_device.offline_dev == NULL)
     {
         LOG_E("offline device register error");
-        return;
+        return -1;
     }
 
     if (tx_thread_create(&wt606_thread, "wt606", wt606_task_entry, 0, wt606_thread_stack, WT606_TASK_STACK_SIZE, WT606_TASK_PRIORITY,
                          WT606_TASK_PRIORITY, TX_NO_TIME_SLICE, TX_AUTO_START) != TX_SUCCESS)
     {
         LOG_E("wt606 thread create error");
-        return;
+        return -1;
     }
 
     wt606_device.initialized = 1;
     LOG_I("module wt606 init finished");
+
+    return 0;
 }
 
 const Module_WT606_Device_t *Module_WT606_Get(void)

@@ -30,7 +30,7 @@
 /**
  * @brief 初始化裁判系统模块
  */
-void Module_Referee_Init();
+int Module_Referee_Init(void);
 /**
  * @brief 发送 0x0301 机器人交互帧（选手端 UI/机间通信）
  * @param sub_cmd_id  子内容ID（如 UI_CMD_DRAW_1）
@@ -50,7 +50,7 @@ uint8_t *Module_Referee_Get_cmd_data(uint16_t cmd_id);
 /**
  * @brief 获取裁判系统模块离线状态
  * @return uint8_t 离线状态
-*/
+ */
 uint8_t Module_Referee_Get_offline_state(void);
 
 #endif // _MODULE_REFEREE_H_

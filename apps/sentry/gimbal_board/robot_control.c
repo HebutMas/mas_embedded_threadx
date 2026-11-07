@@ -2,12 +2,14 @@
 #include "module_boardcomm.h"
 #include "module_ins.h"
 #include "module_vision.h"
+#include "module_nav.h"
 #include "tx_api.h"
 #include "bsp_def.h"
 #include "sentry_def.h"
 #include "gimbal_func.h"
 #include "shoot_func.h"
 #include "robot_func.h"
+#include "power_control.h"
 #include "user_lib.h"
 #include <math.h>
 
@@ -16,11 +18,13 @@
 #include "ulog_def.h"
 
 static TX_THREAD                  robot_control_thread;
-APPS_STACK_SECTION static uint8_t robot_control_thread_stack[1024];
+APPS_STACK_SECTION static uint8_t robot_control_thread_stack[2048];
 
 // 虚拟串口数据结构体
-static ReceivePacket *receive_packet = NULL;
-static SendPacket     send_packet;
+static VisionReceivePacket *vision_receive_packet = NULL;
+static VisionSendPacket     send_packet;
+static NavReceivePacket    *nav_receive_packet = NULL;
+static NavSendPacket        nav_send_packet;
 // 姿态角数据
 const static Ins_t *ins = NULL;
 // 云台与发射机构命令
@@ -57,40 +61,69 @@ static void robot_control_task(ULONG thread_input)
         /* 遥控器控制输入 */
         RemoteControlSet(&chassis_cmd, &shoot_cmd, &gimbal_cmd);
 
-        /* 虚拟串口 */
+        /* 视觉口发送四元数 */
         send_packet.mode = 1 - chassis_upload_data.robot_color;
         send_packet.q[0] = ins->q[0];
         send_packet.q[1] = ins->q[1];
         send_packet.q[2] = ins->q[2];
         send_packet.q[3] = ins->q[3];
         Module_Vision_Send(&send_packet, TX_NO_WAIT);
-        receive_packet = Module_Vision_Receive();
-        /* 自动模式 */
-        gimbal_auto_func(&chassis_cmd, &shoot_cmd, &gimbal_cmd, ins, receive_packet);
+        /* 导航口发送裁判系统数据 */
+        nav_send_packet.robot_color      = chassis_upload_data.robot_color;
+        nav_send_packet.game_progress    = chassis_upload_data.game_progress;
+        nav_send_packet.current_hp       = chassis_upload_data.current_hp;
+        nav_send_packet.bullet_allow     = chassis_upload_data.bullet_allow;
+        nav_send_packet.shooter_heat_pct = chassis_upload_data.shooter_heat_pct;
+        Module_Nav_Send(&nav_send_packet, TX_NO_WAIT);
+        /*视觉接收包*/
+        vision_receive_packet = Module_Vision_Receive();
+        /*导航数据接收包*/
+        nav_receive_packet = Module_Nav_Receive();
+        /* 先由 NAV 确定模式，再处理视觉；道路对齐期间禁止拨盘发射。 */
+        nav_auto_func(&chassis_cmd, &gimbal_cmd, nav_receive_packet);
+        gimbal_auto_func(&shoot_cmd, &gimbal_cmd, ins, vision_receive_packet);
         /* 云台控制 */
-        gimbal_func(&gimbal_cmd, &yaw_ecd);
+        const uint8_t yaw_ecd_valid = gimbal_func(&gimbal_cmd, &yaw_ecd);
         /* 发射机构控制 */
         shoot_func(&shoot_cmd);
 
+        /* 电机闭环 */
+        Motor_ControlAll();
+        PowerControl_Update();
+        Motor_ApplyAll();
+
         /* 板间通讯 */
-        float chassis_vx;
-        float chassis_vy;
-        project_velocity_to_chassis(chassis_cmd.vx, chassis_cmd.vy, yaw_ecd, &chassis_vx, &chassis_vy);
+        float chassis_vx = chassis_cmd.vx;
+        float chassis_vy = chassis_cmd.vy;
+        if (yaw_ecd_valid)
+        {
+            project_velocity_to_chassis(chassis_cmd.vx, chassis_cmd.vy, yaw_ecd, &chassis_vx, &chassis_vy);
+        }
+        else
+        {
+            // 大 yaw 掉线
+            chassis_vx = 0.0f;
+            chassis_vy = 0.0f;
+        }
         VAL_LIMIT(chassis_vx, -CHASSIS_MAX_SPEED_MPS, CHASSIS_MAX_SPEED_MPS);
         VAL_LIMIT(chassis_vy, -CHASSIS_MAX_SPEED_MPS, CHASSIS_MAX_SPEED_MPS);
         // 底盘系 m/s -> 板间 mm/s，底盘端按 1:1 恢复
-        chassis_send_cmd.vx           = (int16_t)lroundf(chassis_vx * 1000.0f);
-        chassis_send_cmd.vy           = (int16_t)lroundf(chassis_vy * 1000.0f);
-        chassis_send_cmd.wz           = (int8_t)(chassis_cmd.wz * 10.0f);
-        chassis_send_cmd.offset_angle = CalcOffsetAngle(yaw_ecd);
-        chassis_send_cmd.chassis_mode = chassis_cmd.chassis_mode;
+        chassis_send_cmd.vx = (int16_t)lroundf(chassis_vx * 1000.0f);
+        chassis_send_cmd.vy = (int16_t)lroundf(chassis_vy * 1000.0f);
+        float chassis_wz    = chassis_cmd.wz;
+        VAL_LIMIT(chassis_wz, -12.7f, 12.7f);
+        chassis_send_cmd.wz           = (int8_t)lroundf(chassis_wz * 10.0f);
+        chassis_send_cmd.offset_angle = yaw_ecd_valid ? CalcOffsetAngle(yaw_ecd) : 0;
+        chassis_send_cmd.chassis_mode = yaw_ecd_valid ? chassis_cmd.chassis_mode : chassis_zero_force;
         Module_BoardComm_Send((uint8_t *)&chassis_send_cmd, sizeof(GimbalToChassis_cmd_t));
+
+        Module_BoardComm_Receive(&chassis_upload_data, sizeof(ChassisToGimbal_referee_t));
 
         tx_thread_sleep(2);
     }
 }
 
-void robot_control_init(void)
+int robot_control_init(void)
 {
     UINT status;
 
@@ -99,24 +132,24 @@ void robot_control_init(void)
     if (ins == NULL)
     {
         LOG_E("ins is null");
-        return;
+        return -1;
     }
 
-    /* 云台初始化 */
-    gimbal_init();
-    /* 发射机构初始化 */
-    shoot_init();
+    /* 云台/发射机构初始化 */
+    if (gimbal_init() != 0 || shoot_init() != 0)
+    {
+        return -1;
+    }
 
-    /* 板间通讯注册 */
-    Module_BoardComm_RegisterRxBuffer(&chassis_upload_data, sizeof(ChassisToGimbal_referee_t));
-
-    status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0, robot_control_thread_stack, 1024, 30, 30,
+    status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0, robot_control_thread_stack, 2048, 8, 8,
                               TX_NO_TIME_SLICE, TX_AUTO_START);
     if (status != TX_SUCCESS)
     {
         LOG_E("robot_control_task failed!");
-        return;
+        return -1;
     }
 
     LOG_I("robot_control init success!");
+
+    return 0;
 }

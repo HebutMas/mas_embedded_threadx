@@ -65,27 +65,22 @@ add_subdirectory(${MAS_ROOT}/modules   ${CMAKE_CURRENT_BINARY_DIR}/modules)
 add_subdirectory(${MAS_ROOT}/apps      ${CMAKE_CURRENT_BINARY_DIR}/apps)
 
 
-# CMSIS-DSP settings (M4/M7 通用)
-set(LOOPUNROLL ON CACHE BOOL "Loop unrolling for max performance" FORCE)
-set(DISABLEFLOAT16 ON CACHE BOOL "Disable float16 kernels (not needed on M4/M7)" FORCE)
-add_subdirectory(${MAS_ROOT}/CMSIS-DSP ${CMAKE_CURRENT_BINARY_DIR}/cmsisdsp)
+# CMSIS-DSP
+add_subdirectory(${MAS_ROOT}/3rdparty/CMSIS-DSP ${CMAKE_CURRENT_BINARY_DIR}/cmsisdsp)
 # Apply max performance compiler flags to CMSIS-DSP
 target_compile_options(CMSISDSP PRIVATE -O3 -ffast-math -fno-math-errno -flto)
 # Provide CMSIS-Core headers (cmsis_compiler.h) to CMSIS-DSP（板目录下的 Drivers）
 target_include_directories(CMSISDSP PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Include)
 
+# CherryUSB
 # BSP_USB_ENABLE OFF 时自动关闭 DWC2 端口
 if(NOT BSP_USB_ENABLE)
     set(CONFIG_CHERRYUSB_DEVICE_DWC2_ST OFF CACHE BOOL "" FORCE)
+else()
+    set(CONFIG_CHERRYUSB_DEVICE_DWC2_ST ON CACHE BOOL "" FORCE)
 endif()
 
-# CherryUSB Device CDC ACM
-set(CONFIG_CHERRYUSB_DEVICE ON CACHE BOOL "Enable CherryUSB device stack" FORCE)
-set(CONFIG_CHERRYUSB_DEVICE_CDC_ACM ON CACHE BOOL "Enable CDC ACM class" FORCE)
-set(CONFIG_CHERRYUSB_DEVICE_DWC2_ST ON CACHE BOOL "Use DWC2 OTG with STM32 glue")
-set(CONFIG_CHERRYUSB_OSAL "threadx" CACHE STRING "Use ThreadX OS abstraction layer" FORCE)
-
-include(${MAS_ROOT}/CherryUSB/cherryusb.cmake)
+include(${MAS_ROOT}/3rdparty/CherryUSB/cherryusb.cmake)
 list(REMOVE_DUPLICATES cherryusb_srcs)
 list(REMOVE_DUPLICATES cherryusb_incs)
 
@@ -139,8 +134,7 @@ if(CPPCHECK_PROGRAM)
         --inline-suppr
         --suppress=missingIncludeSystem
         --suppress=preprocessorErrorDirective
-        --suppress=*:*\/CMSIS-DSP\/*
-        --suppress=*:*\/CherryUSB\/*
+        --suppress=*:*\/3rdparty\/*
         --suppress=*:*\/threadx\/*
         --suppress=*:*\/board/*\/Drivers\/CMSIS\/*
         --suppress=unknownMacro:threadx\/*

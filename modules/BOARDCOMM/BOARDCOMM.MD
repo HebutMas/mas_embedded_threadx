@@ -31,12 +31,12 @@ app 发送 ────────►│  Module_BoardComm_Send()           │
                   └────────────────────────────────────┘
 ```
 
-> 两种接收模式互斥: `RegisterRxBuffer` 与 `RegisterRx`。
+> 两种接收模式互斥: `Module_BoardComm_Receive` 与 `RegisterRx`。
 
 ## API 接口说明
 
 ```c
-void Module_BoardComm_Init(void);
+int  Module_BoardComm_Init(void);
 ```
 
 ```c
@@ -54,10 +54,9 @@ typedef void (*BoardComm_RxCallback_t)(const uint8_t *data, uint8_t len);
 ```
 
 ```c
-void Module_BoardComm_RegisterRxBuffer(void *buffer, uint8_t expected_len);
+uint8_t Module_BoardComm_Receive(void *dst, uint8_t len);
 ```
 
-直接注册接收缓冲区。CAN 帧长度与 `expected_len` 匹配时，BOARDCOMM 内部自动 `memcpy` 到 `buffer`。
 
 
 ```c
@@ -89,7 +88,7 @@ uint8_t Module_BoardComm_Get_Offline_State(void);
 
 ## 使用示例
 
-### 方式一：RegisterRxBuffer **接收结构体强制8字节，并且有静态校验**
+### 方式一：Module_BoardComm_Receive **接收结构体强制8字节，并且有静态校验**
 
 ```c
 #include "module_boardcomm.h"
@@ -125,22 +124,22 @@ static ChassisToGimbal_referee_t chassis_upload_data;
 
 void app_init(void)
 {
-    Module_BoardComm_Init();
-
-    // 直接注册接收缓冲区，BOARDCOMM 内部 memcpy
-    Module_BoardComm_RegisterRxBuffer(&chassis_upload_data,
-                                       sizeof(ChassisToGimbal_referee_t));
+    if (Module_BoardComm_Init() != 0) {
+        return; 
+    }
 }
 
 void app_task(void)
 {
+    Module_BoardComm_Receive(&chassis_upload_data,
+                             sizeof(ChassisToGimbal_referee_t));
+
     // 发送：直接填结构体，强转为 uint8_t* 发送
     chassis_send_cmd.vx = 5;
     chassis_send_cmd.vy = 0;
     Module_BoardComm_Send((uint8_t *)&chassis_send_cmd,
                            sizeof(GimbalToChassis_cmd_t));
 
-    // 接收：chassis_upload_data 已被自动更新，直接读取
     uint16_t hp = chassis_upload_data.current_hp;
 
     // 检查板间通信是否离线
@@ -166,7 +165,9 @@ static void my_rx_callback(const uint8_t *data, uint8_t len)
 
 void app_init(void)
 {
-    Module_BoardComm_Init();
+    if (Module_BoardComm_Init() != 0) {
+        return; 
+    }
     Module_BoardComm_RegisterRx(my_rx_callback);
 }
 ```
@@ -176,21 +177,22 @@ void app_init(void)
 ### BSP CAN 回调
 
 ```c
-static void boardcomm_bsp_rx_callback(Can_Device *dev,
-                                       const uint8_t *data, uint8_t len)
+static void boardcomm_rx_callback(Can_Device *dev,
+                                  const uint8_t *data, uint8_t len)
 {
-    // buffer 模式
-    if (rx_buffer != NULL && len == rx_expected_len)
-    {
-        memcpy(rx_buffer, data, len);
-        Module_Offline_device_update(boardcomm_offline_dev);
-    }
-    // callback 模式
-    else if (app_rx_callback != NULL)
+    // callback 模式优先
+    if (app_rx_callback != NULL)
     {
         app_rx_callback(data, len);
         Module_Offline_device_update(boardcomm_offline_dev);
+        return;
     }
+
+    // 默认模式: 写双缓冲
+    memcpy(rx_frame[rx_idx], data, len);
+    rx_frame_len = len;
+    rx_idx ^= 1;                 
+    Module_Offline_device_update(boardcomm_offline_dev);
 }
 ```
 
@@ -198,9 +200,9 @@ static void boardcomm_bsp_rx_callback(Can_Device *dev,
 
 1. **帧长限制** — CAN 帧最大 8 字节。结构体超过 8 字节会导致 `_Static_assert` 编译失败。
 
-2. **RegisterRxBuffer vs RegisterRx** — 两种模式互斥。
+2. **Module_BoardComm_Receive vs RegisterRx** — 两种模式互斥。
 
-5. **结构体对齐** — 使用RegisterRxBuffer时定义结构体必须用 `#pragma pack(1)` 保证无填充，`_Static_assert(sizeof(...) == 8)` 编译期校验。
+3. **结构体对齐** — 用 `Module_BoardComm_Receive` 时定义结构体必须用 `#pragma pack(1)` 保证无填充，`_Static_assert(sizeof(...) == 8)` 编译期校验。
 
 ## 版本历史
 
@@ -209,3 +211,4 @@ static void boardcomm_bsp_rx_callback(Can_Device *dev,
 | v1.0 | 2026-05-13 | 初始版本 |
 | v1.1 | 2026-05-17 | 重构，增加RegisterRxBuffer与RegisterRx |
 | v1.1.1 | 2026-05-17 | fix:修复send函数传参 |
+| v1.2 | 2026-10-07 | 接收改双缓冲区 |

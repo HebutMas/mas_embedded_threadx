@@ -62,7 +62,7 @@ modules/VL53L0X/
 #endif
 
 /* 对外函数 */
-int  Module_VL53L0X_Init(void);
+int  Module_VL53L0X_Init(void); /* 0 成功 / -1 失败 */
 float Module_VL53L0X_GetDistance(void);
 
 #endif
@@ -96,12 +96,16 @@ static void task_entry(ULONG arg)
 
 int Module_VL53L0X_Init(void)
 {
-    // 硬件初始化...
-    tx_thread_create(&g_thread, "vl53l0x", task_entry, 0,
-                     g_stack, VL53L0X_TASK_STACK_SIZE,
-                     VL53L0X_TASK_PRIORITY, VL53L0X_TASK_PRIORITY,
-                     TX_NO_TIME_SLICE, TX_AUTO_START);
+    if (tx_thread_create(&g_thread, "vl53l0x", task_entry, 0,
+                         g_stack, VL53L0X_TASK_STACK_SIZE,
+                         VL53L0X_TASK_PRIORITY, VL53L0X_TASK_PRIORITY,
+                         TX_NO_TIME_SLICE, TX_AUTO_START) != TX_SUCCESS)
+    {
+        LOG_E("vl53l0x thread create failed");
+        return -1;
+    }
     LOG_I("VL53L0X initialized");
+
     return 0;
 }
 
@@ -135,10 +139,15 @@ endif()
 void MODULE_Init(void)
 {
     // ... 已有模块 ...
+    bool ok = true;
 #if MODULE_VL53L0X
-    Module_VL53L0X_Init();
+    ok &= Module_VL53L0X_Init() == 0;
 #endif
     LOG_I("Modules init finished");
+
+    if (!ok) {
+        LOG_E_LOCK("MODULE_Init failed");
+    }
 }
 ```
 
@@ -191,7 +200,7 @@ set(VL53L0X_TASK_STACK_SIZE 1024)
 |---|------|------|
 | 1 | `modules/<NAME>/module_<name>.h` + `.c` | 新建模块代码 |
 | 2 | `modules/CMakeLists.txt` | 加 `if(MODULE_XXX)` 块 |
-| 3 | `modules/module_init.c` | 加 `#include` + `Init()` 调用 |
+| 3 | `modules/module_init.c` | 加 `#include` + `ok &= Module_XXX_Init() == 0;` |
 | 4 | `modules/module_config.cmake` | 添加默认列表和参数 |
 | 5 | `apps/module_config.h.in` | 添加该模块的参数宏导出（普通宏用 `#define VAR @VAR@`，可选硬件句柄用 `#cmakedefine`） |
 | 6 | `apps/<robot>/robot.cmake` | 覆盖模块列表 / 参数 |
@@ -203,7 +212,7 @@ set(VL53L0X_TASK_STACK_SIZE 1024)
 | 目录名 | 大写 | `VL53L0X/` |
 | 文件名 | `module_<小写>.h/.c` | `module_vl53l0x.c` |
 | 宏前缀 | `MODULE_` | `MODULE_VL53L0X` |
-| Init 函数 | `Module_<CamelCase>_Init()` | `Module_VL53L0X_Init()` |
+| Init 函数 | `int Module_<CamelCase>_Init(void)` | `int Module_VL53L0X_Init(void)` |
 | 参数宏 | `<MODULE>_<PARAM>` | `VL53L0X_TASK_STACK_SIZE` |
 | 参数默认值 | `#ifndef` 包裹在 `.h` 中 | 见步骤 1 |
 
@@ -212,3 +221,4 @@ set(VL53L0X_TASK_STACK_SIZE 1024)
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1.0 | 2026-05-11 | 初始版本 |
+| v1.1 | 2026-10-07 | Init 改为 int 返回(0/-1) |

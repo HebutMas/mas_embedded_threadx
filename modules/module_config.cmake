@@ -1,19 +1,19 @@
-﻿# 模块默认配置模板
+# 模块默认配置模板
 # 各 apps/<robot>/robot.cmake 应先 include 本文件，再覆盖差异项。
 # 覆盖方式：直接 set(变量名 新值) 即可，无需前缀。
 
-# 可用模块列表 OFFLINE REMOTE BMI088 INS REFEREE SUPERCAP WT606 MOTOR BOARDCOMM VISION VOFA
+# 可用模块列表 OFFLINE REMOTE BMI088 INS REFEREE SUPERCAP WT606 MOTOR BOARDCOMM VISION NAV LORA VOFA NRF24L01
 
 # 默认模块列表
 set(MODULES_SINGLE   OFFLINE REMOTE BMI088 INS REFEREE SUPERCAP MOTOR)
-set(MODULES_GIMBAL   OFFLINE REMOTE BMI088 INS MOTOR VISION BOARDCOMM)
+set(MODULES_GIMBAL   OFFLINE REMOTE BMI088 INS MOTOR VISION NAV BOARDCOMM)
 set(MODULES_CHASSIS  OFFLINE BMI088 INS REFEREE SUPERCAP MOTOR BOARDCOMM)
 
 # OFFLINE 默认参数
 set(OFFLINE_WATCHDOG_ENABLE 1)    # 开启看门狗
 set(OFFLINE_BEEP_ENABLE     1)    # 开启蜂鸣器
 set(OFFLINE_TASK_STACK_SIZE 1024) # 任务栈大小
-set(OFFLINE_TASK_PRIORITY   6)    # 任务优先级
+set(OFFLINE_TASK_PRIORITY   30)   # 任务优先级
 
 # REMOTE 默认参数
 set(REMOTE_UART             huart3) # 串口
@@ -22,8 +22,8 @@ set(REMOTE_SOURCE           1)      # 遥控器选择: 0=none, 1=sbus, 2=dt7
 set(REMOTE_VT_SOURCE        1)      # 图传选择:   0=none, 1=vt02, 2=vt03
 set(REMOTE_DEAD_ZONE        10)     # 死区
 set(REMOTE_TASK_STACK_SIZE  1024)   # 任务栈大小
-set(REMOTE_TASK_PRIORITY    9)      # 任务优先级
-set(REMOTE_TASK_VT_PRIORITY 8)      # 图传串口任务优先级
+set(REMOTE_TASK_PRIORITY    12)     # SBUS/DT7 任务优先级
+set(REMOTE_TASK_VT_PRIORITY 10)     # VT02/VT03 任务优先级
 set(REMOTE_OFFLINE_ENABLE      1)   # 遥控器离线检测
 set(REMOTE_VT_OFFLINE_ENABLE   1)   # 图传离线检测
 
@@ -34,11 +34,13 @@ set(BMI088_TEMP_SET         35.0)   # 温度设置
 # INS 默认参数
 set(INS_TASK_STACK_SIZE     1024)   # 任务栈大小
 set(INS_TASK_PRIORITY       7)      # 任务优先级
+set(INS_NOTCH_FREQ_HZ       0)      # IMU陷波主频，0=关闭
+set(INS_NOTCH_BANDWIDTH_HZ  15)     # IMU陷波带宽 (Hz)
 
 # REFEREE 默认参数
 set(REFEREE_UART            huart1) # 串口选择
 set(REFEREE_TASK_STACK_SIZE 1024)   # 任务栈大小
-set(REFEREE_TASK_PRIORITY   10)     # 任务优先级
+set(REFEREE_TASK_PRIORITY   14)     # 任务优先级
 set(REFEREE_OFFLINE_ENABLE  1)      # 离线检测开启
 
 # SUPERCAP 默认参数
@@ -48,13 +50,10 @@ set(SUPERCAP_OFFLINE_ENABLE 1)      # 离线检测开启
 # WT606 默认参数
 set(WT606_UART              huart1) # 串口选择
 set(WT606_TASK_STACK_SIZE   1024)   # 任务栈大小
-set(WT606_TASK_PRIORITY     8)      # 任务优先级
+set(WT606_TASK_PRIORITY     9)      # 任务优先级
 set(WT606_OFFLINE_ENABLE    1)      # 离线检测开启
 
-# MOTOR 默认参数
-set(MOTOR_TASK_STACK_SIZE   1024)   # 任务栈大小 
-set(MOTOR_TASK_PRIORITY     12)     # 任务优先级
-set(MOTOR_OFFLINE_ENABLE    1)      # 电机离线检测默认值
+
 
 # BOARDCOMM 默认参数
 set(BOARDCOMM_CAN           BSP_CAN_HANDLE2) # CAN 句柄  
@@ -62,11 +61,50 @@ set(BOARDCOMM_OFFLINE_ENABLE 1)     # 离线检测开启
 
 # VISION 默认参数
 set(VISION_TASK_STACK_SIZE   1024)   # 任务栈大小
-set(VISION_TASK_PRIORITY     10)     # 任务优先级
-set(VISION_OFFLINE_ENABLE    1)      # 离线检测开启
+set(VISION_TASK_PRIORITY     11)     # 任务优先级
+set(VISION_OFFLINE_ENABLE    1)      # 自瞄离线检测开启
+
+# NAV 默认参数
+set(NAV_TASK_STACK_SIZE      1024)   # 任务栈大小
+set(NAV_TASK_PRIORITY        13)     # 任务优先级
+set(NAV_OFFLINE_ENABLE       1)      # 导航离线检测开启
+
+# LORA 默认参数(塔石 L33 LoRa 透传; 默认不启用)
+# 注: LORA 默认不在 MODULES_* 列表中(默认不启用)。启用兵种需在自己的 robot.cmake:
+#     1) 将 LORA 加入对应 MODULES_XXX
+#     2) 配置板级 UART/GPIO: LORA_UART / LORA_M0/M1/AUX_GPIO_PORT(_PIN)
+# 例(F103C8: USART2=PA2/PA3, M0=PA4, M1=PA5, AUX=PA6):
+#   set(LORA_UART huart2)
+#   set(LORA_M0_GPIO_PORT GPIOA)  set(LORA_M0_GPIO_PIN GPIO_PIN_4)
+#   set(LORA_M1_GPIO_PORT GPIOA)  set(LORA_M1_GPIO_PIN GPIO_PIN_5)
+#   set(LORA_AUX_GPIO_PORT GPIOA) set(LORA_AUX_GPIO_PIN GPIO_PIN_6)
+set(LORA_TASK_STACK_SIZE     1024)   # 任务栈大小
+set(LORA_TASK_PRIORITY       16)     # 任务优先级
+set(LORA_OFFLINE_ENABLE      1)      # 离线检测开启(收到合法帧喂心跳)
+set(LORA_AUX_ENABLE          1)      # 是否接 AUX(0=不接,发前不做忙检测)
+set(LORA_TX_INTERVAL_MS      50)     # 发送周期，默认 20Hz
+set(LORA_TX_ENABLE           1)      # 是否发送，接收端可覆盖为 0
 
 # VOFA 默认参数
 # 注: VOFA 默认不在 MODULES_* 列表中(默认不启用)。如需启用, 在对应 MODULES_XXX 中加入 VOFA
-set(VOFA_UART              huart6)   # 串口选择 (RM2025 原用 huart6)
-set(VOFA_TASK_STACK_SIZE   1024)     # 任务栈大小
-set(VOFA_TASK_PRIORITY     11)       # 任务优先级
+set(VOFA_UART              huart6)       # 串口句柄
+set(VOFA_FORMAT            0)            # 协议格式: 0=JustFloat, 1=FireWater
+set(VOFA_FIREWATER_PREFIX  "vofa:")      # FireWater 前缀
+set(VOFA_TX_INTERVAL_MS    10)           # TX 发送周期 (ms)
+set(VOFA_TASK_STACK_SIZE   1024)         # 任务栈大小
+set(VOFA_TASK_PRIORITY     16)           # 任务优先级
+
+# NRF24L01 默认参数(2.4GHz无线模块; 默认不启用)
+# 注: NRF24L01 默认不在 MODULES_* 列表中(默认不启用)。启用需在 robot.cmake:
+#     1) 将 NRF24L01 加入对应 MODULES_XXX
+#     2) 按角色设置 NRF24L01_TX_ENABLE / NRF24L01_RX_ENABLE(二者必须且只能选一个)
+# SPI 与 CE/CSN/IRQ 引脚由各工程自己在 CubeMX 里配好(见 module_nrf24l01.h)
+set(NRF24L01_TASK_STACK_SIZE    1024)  # 任务栈大小
+set(NRF24L01_TASK_PRIORITY      15)    # 任务优先级
+set(NRF24L01_TX_INTERVAL_MS     10)    # 发送周期, 默认100Hz
+set(NRF24L01_TX_ENABLE          0)     # 1=注册发送线程(本板做发送端)
+set(NRF24L01_RX_ENABLE          0)     # 1=注册接收线程(本板做接收端); 与上一行互斥
+set(NRF24L01_OFFLINE_ENABLE     1)     # 离线检测开启(收到数据/收到ACK喂心跳)
+set(NRF24L01_ADDR              "0x11,0x22,0x33,0x44,0x55") # 5字节通信地址(逗号分隔); 收发两端必须一致
+# RF_CHANNEL / RF_DATARATE / RF_POWER / MAX_CAPS / RETR_COUNT / RETR_DELAY / OFFLINE超时
+# 均为驱动定值, 不在 rc 里暴露(见 module_nrf24l01.h)
