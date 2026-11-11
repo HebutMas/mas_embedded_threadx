@@ -1,3 +1,11 @@
+/*
+ * @Author: maple0738 1573764313@qq.com
+ * @Date: 2026-10-13 17:08:55
+ * @LastEditors: maple0738 1573764313@qq.com
+ * @LastEditTime: 2026-11-11 22:20:40
+ * @FilePath: \mas_embedded_threadx\modules\VISION\module_vision.h
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 #ifndef _MODULE_VISION_H_
 #define _MODULE_VISION_H_
 
@@ -24,6 +32,7 @@ typedef struct
 
 typedef struct
 {
+    uint8_t found;        /* 1: 已锁定目标, 0: 未找到 */
     float   target_yaw;   /* 目标偏航角 (rad) */
     float   target_pitch; /* 目标俯仰角 (rad) */
     uint8_t fire_advice;  /* 0:不射击, 1:射击 */

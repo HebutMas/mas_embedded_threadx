@@ -62,7 +62,7 @@ app → Module_Vision_Send() → 帧头 + VisionSendPacket + CRC16
 | 方向 | 帧头 | payload | 总长度 |
 |------|------|---------|--------|
 | 板 → 上位机 | `0x5A` | `VisionSendPacket`：mode、四元数 q[4] | 20 字节 |
-| 上位机 → 板 | `0xA5` | `VisionReceivePacket`：target_yaw、target_pitch、fire_advice | 12 字节 |
+| 上位机 → 板 | `0xA5` | `VisionReceivePacket`：target_yaw、target_pitch、fire_advice、found | 13 字节 |
 
 结构体按 1 字节对齐，float 沿用 STM32 的 32 位小端布局，角度单位 rad。
 
