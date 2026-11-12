@@ -12,16 +12,17 @@
 #include "module_boardcomm.h"
 #include "module_offline.h"
 #include "robot_func.h"
+#include "power_control.h"
 #include "tx_api.h"
 #include "bsp_def.h"
-#include "<robot>_def.h"   /* TODO: 改为 <你的机器人>_def.h */
+#include "<robot>_def.h" /* TODO: 改为 <你的机器人>_def.h */
 
 #define LOG_TAG "app_robot_control"
 #define LOG_LVL LOG_LVL_INFO
 #include "ulog_def.h"
 
 static TX_THREAD                  robot_control_thread;
-APPS_STACK_SECTION static uint8_t robot_control_thread_stack[1024];
+APPS_STACK_SECTION static uint8_t robot_control_thread_stack[2048];
 
 /* ── 底盘命令 ── */
 static Chassis_Ctrl_Cmd_t chassis_cmd;
@@ -65,27 +66,33 @@ static void robot_control_task(ULONG thread_input)
         /* ── 底盘控制 ── */
         chassis_func(&chassis_cmd);
 
+        /* 电机闭环 */
+        Motor_ControlAll();
+        PowerControl_Update();
+        Motor_ApplyAll();
+
         tx_thread_sleep(2);
     }
 }
 
-void robot_control_init(void)
+int robot_control_init(void)
 {
     UINT status;
 
-    /* ── 子系统初始化 ── */
-    chassis_init();
+    if (chassis_init() != 0)
+    {
+        return -1; 
+    }
 
-    /* 板间通讯: 注册接收云台板命令 */
-    Module_BoardComm_RegisterRxBuffer(&chassis_recv_cmd, sizeof(GimbalToChassis_cmd_t));
-
-    status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0,
-                              robot_control_thread_stack, 1024, 30, 30, TX_NO_TIME_SLICE, TX_AUTO_START);
+    status = tx_thread_create(&robot_control_thread, "robot_control_thread", robot_control_task, 0, robot_control_thread_stack, 2048, 8, 8,
+                              TX_NO_TIME_SLICE, TX_AUTO_START);
     if (status != TX_SUCCESS)
     {
         LOG_E("robot_control_task failed!");
-        return;
+        return -1;
     }
 
     LOG_I("robot_control init success!");
+
+    return 0;
 }

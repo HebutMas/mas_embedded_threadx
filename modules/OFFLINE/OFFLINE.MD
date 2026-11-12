@@ -118,7 +118,9 @@ static Offline_Device *g_sensor_dev;
 void app_init(void)
 {
     /* 初始化离线模块 */
-    Module_Offline_init();
+    if (Module_Offline_init() != 0) {
+        return;
+    }
 
     /* 注册传感器设备 (超时 500ms, 离线蜂鸣 3 次) */
     Offline_Init_config_t sensor_cfg = {

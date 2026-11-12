@@ -192,12 +192,16 @@ static bool lora_feed_byte(uint8_t byte)
     }
 }
 
-void Module_Lora_Init(void)
+int Module_Lora_Init(void)
 {
     HAL_GPIO_WritePin(LORA_M0_GPIO_PORT, LORA_M0_GPIO_PIN, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(LORA_M1_GPIO_PORT, LORA_M1_GPIO_PIN, GPIO_PIN_RESET);
     LORA_UART.Init.BaudRate = 115200;
-    if (HAL_UART_Init(&LORA_UART) != HAL_OK) return;
+    if (HAL_UART_Init(&LORA_UART) != HAL_OK)
+    {
+        LOG_E("lora uart init failed");
+        return -1;
+    }
 
     UART_Device_init_config config = {
         .huart           = &LORA_UART,
@@ -208,7 +212,11 @@ void Module_Lora_Init(void)
         .tx_mode         = UART_MODE_DMA,
     };
     lora_uart = BSP_UART_Device_Init(&config);
-    if (lora_uart == NULL) return;
+    if (lora_uart == NULL)
+    {
+        LOG_E("lora uart device init failed");
+        return -1;
+    }
 
     Offline_Init_config_t offline = {
         .name       = "lora",
@@ -222,10 +230,12 @@ void Module_Lora_Init(void)
                          TX_NO_TIME_SLICE, TX_AUTO_START) != TX_SUCCESS)
     {
         LOG_E("lora thread create failed");
-        return;
+        return -1;
     }
 
     LOG_I("module lora init finished");
+
+    return 0;
 }
 
 int Lora_Register(const char *name, void *value, Lora_Data_Type type)

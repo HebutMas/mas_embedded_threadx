@@ -15,6 +15,9 @@
 #define BOARDCOMM_GIMBAL_ID  0x310 /* 云台 → 底盘 */
 #define BOARDCOMM_CHASSIS_ID 0x311 /* 底盘 → 云台 */
 
+/* CAN帧 DLC 上限 */
+#define BOARDCOMM_FRAME_MAX  8
+
 /* 使用的 CAN 总线 */
 #ifndef BOARDCOMM_CAN
 #define BOARDCOMM_CAN BSP_CAN_HANDLE2
@@ -35,7 +38,7 @@ typedef void (*BoardComm_RxCallback_t)(const uint8_t *data, uint8_t len);
  * @brief 初始化板间通信模块（注册 CAN 过滤器、启动接收）
  * @note 单板模式下直接跳过
  */
-void Module_BoardComm_Init(void);
+int Module_BoardComm_Init(void);
 
 /**
  * @brief 发送原始 CAN 数据
@@ -52,12 +55,13 @@ void Module_BoardComm_Send(uint8_t *data, uint8_t len);
 void Module_BoardComm_RegisterRx(BoardComm_RxCallback_t callback);
 
 /**
- * @brief 直接注册接收缓冲区（BOARDCOMM 内部 memcpy）
- * @param buffer       目标缓冲区指针
- * @param expected_len 期望的数据长度（与 CAN 帧长度匹配时才拷贝）
- * @note 与 RegisterRx 互斥，重复调用会覆盖；传 NULL 注销
+ * @brief 取出一份接收帧快照
+ * @param dst  目标缓冲区
+ * @param len  期望长度（须与收到的 CAN 帧长度一致）
+ * @return 1 = 已拷出最近一帧；0 = 尚无帧、长度不匹配，或 CAN 中断正在写
+ * @note 与 RegisterRx 互斥;
  */
-void Module_BoardComm_RegisterRxBuffer(void *buffer, uint8_t expected_len);
+uint8_t Module_BoardComm_Receive(void *dst, uint8_t len);
 
 /**
  * @brief 获取板间通信离线状态

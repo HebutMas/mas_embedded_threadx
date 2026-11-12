@@ -29,11 +29,11 @@
 #if MODULE_SUPERCAP
 #include "module_supercap.h"
 #endif
-#if MODULE_MOTOR
-#include "module_motor.h"
-#endif
 #if MODULE_VISION
 #include "module_vision.h"
+#endif
+#if MODULE_NAV
+#include "module_nav.h"
 #endif
 #if MODULE_BOARDCOMM
 #include "module_boardcomm.h"
@@ -44,7 +44,9 @@
 #if MODULE_VOFA
 #include "vofa.h"
 #endif
-
+#if MODULE_NRF24L01
+#include "module_nrf24l01.h"
+#endif
 
 #define LOG_LVL LOG_LVL_INFO
 #define LOG_TAG "Robot_Init"
@@ -52,42 +54,52 @@
 
 void MODULE_Init(void)
 {
+    bool ok = true;
+
 #if MODULE_OFFLINE
-    Module_Offline_init();
+    ok &= Module_Offline_init() == 0;
 #endif
 #if MODULE_REMOTE
-    Module_Remote_init();
+    ok &= Module_Remote_init() == 0;
 #endif
 #if MODULE_BMI088
-    Module_BMI088_init();
+    ok &= Module_BMI088_init() == 0;
 #endif
 #if MODULE_INS
-    Module_INS_Init();
+    ok &= Module_INS_Init() == 0;
 #endif
 #if MODULE_REFEREE
-    Module_Referee_Init();
+    ok &= Module_Referee_Init() == 0;
 #endif
 #if MODULE_WT606
-    Module_WT606_Init();
+    ok &= Module_WT606_Init() == 0;
 #endif
 #if MODULE_SUPERCAP
-    Module_SuperCap_Init();
-#endif
-#if MODULE_MOTOR
-    Module_Motor_Init();
+    ok &= Module_SuperCap_Init() == 0;
 #endif
 #if MODULE_VISION
-    Module_Vision_Init();
+    ok &= Module_Vision_Init() == 0;
+#endif
+#if MODULE_NAV
+    ok &= Module_Nav_Init() == 0;
 #endif
 #if MODULE_BOARDCOMM
-    Module_BoardComm_Init();
+    ok &= Module_BoardComm_Init() == 0;
 #endif
 #if MODULE_LORA
-    Module_Lora_Init();
+    ok &= Module_Lora_Init() == 0;
 #endif
 #if MODULE_VOFA
-    Module_VOFA_Init();
+    Module_VOFA_Init(); // 无失败路径
 #endif
+#if MODULE_NRF24L01
+    ok &= Module_NRF24L01_Init() == 0;
+#endif
+
+    if (!ok)
+    {
+        LOG_E_LOCK("MODULE_Init failed");
+    }
 
     LOG_I("Modules init finished");
 }

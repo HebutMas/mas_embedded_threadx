@@ -16,7 +16,7 @@ static float                       chassis_vx, chassis_vy, chassis_wz; // 将云
 static PIDInstance                 chassis_follow_pid;
 static const Chassis_Diff_Config_s chassis_diff_config = {.decele_ratio = 16.0f, .wheel_base_x = 0.5, .wheel_base_y = 0.3, .wheel_radius = 0.075};
 
-void chassis_init(void)
+int chassis_init(void)
 {
     PID_Init_Config_s config = {
         .MaxOut = 5, .IntegralLimit = 0.01, .DeadBand = 10, .Kp = 0.1, .Ki = 0, .Kd = 0.001, .Improve = 0x01}; // enable integratiaon limit
@@ -59,7 +59,7 @@ void chassis_init(void)
     if (chassis_motors[0] == NULL)
     {
         LOG_E("chassis motor[0] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[0]->base, PC_ROLE_DRIVE, power_config);
 
@@ -71,7 +71,7 @@ void chassis_init(void)
     if (chassis_motors[1] == NULL)
     {
         LOG_E("chassis motor[1] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[1]->base, PC_ROLE_DRIVE, power_config);
 
@@ -83,7 +83,7 @@ void chassis_init(void)
     if (chassis_motors[2] == NULL)
     {
         LOG_E("chassis motor[2] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[2]->base, PC_ROLE_DRIVE, power_config);
 
@@ -95,13 +95,15 @@ void chassis_init(void)
     if (chassis_motors[3] == NULL)
     {
         LOG_E("chassis motor[3] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[3]->base, PC_ROLE_DRIVE, power_config);
 
     PowerControl_SetLimit(120, 60, 0);
 
     LOG_I("Chassis initialized");
+
+    return 0;
 }
 
 void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)

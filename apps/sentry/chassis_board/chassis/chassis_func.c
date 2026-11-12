@@ -32,11 +32,11 @@ static uint8_t                       offset_rate_ready;
 static const Chassis_Swerve_Config_s chassis_swerve_config = {
     .align_rad      = {4458 * 0.000767f, 1010 * 0.000767f, 7177 * 0.000767f, 3756 * 0.000767f}, // lf lb rb rf(rad)
     .decele_ratio   = 16.0f,
-    .radius_wheel_m = 0.12f,
+    .radius_wheel_m = 0.06f,
     .wheel_r        = 0.5f,
 };
 
-void chassis_init(void)
+int chassis_init(void)
 {
     PID_Init_Config_s config = {
         .MaxOut = 5, .IntegralLimit = 0.01, .DeadBand = 12, .Kp = 0.065, .Ki = 0, .Kd = 0, .Improve = 0x01}; // enable integratiaon limit
@@ -79,7 +79,7 @@ void chassis_init(void)
     if (chassis_motors[0] == NULL)
     {
         LOG_E("chassis motor[0] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[0]->base, PC_ROLE_DRIVE, power_config);
 
@@ -91,7 +91,7 @@ void chassis_init(void)
     if (chassis_motors[1] == NULL)
     {
         LOG_E("chassis motor[1] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[1]->base, PC_ROLE_DRIVE, power_config);
 
@@ -103,7 +103,7 @@ void chassis_init(void)
     if (chassis_motors[2] == NULL)
     {
         LOG_E("chassis motor[2] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[2]->base, PC_ROLE_DRIVE, power_config);
 
@@ -115,7 +115,7 @@ void chassis_init(void)
     if (chassis_motors[3] == NULL)
     {
         LOG_E("chassis motor[3] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[3]->base, PC_ROLE_DRIVE, power_config);
 
@@ -156,7 +156,7 @@ void chassis_init(void)
     if (chassis_motors[4] == NULL)
     {
         LOG_E("chassis motor[4] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[4]->base, PC_ROLE_STEER, gm6020_power_config);
 
@@ -168,7 +168,7 @@ void chassis_init(void)
     if (chassis_motors[5] == NULL)
     {
         LOG_E("chassis motor[5] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[5]->base, PC_ROLE_STEER, gm6020_power_config);
 
@@ -180,7 +180,7 @@ void chassis_init(void)
     if (chassis_motors[6] == NULL)
     {
         LOG_E("chassis motor[6] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[6]->base, PC_ROLE_STEER, gm6020_power_config);
 
@@ -192,13 +192,15 @@ void chassis_init(void)
     if (chassis_motors[7] == NULL)
     {
         LOG_E("chassis motor[7] init failed");
-        return;
+        return -1;
     }
     PowerControl_Register(&chassis_motors[7]->base, PC_ROLE_STEER, gm6020_power_config);
 
     PowerControl_SetLimit(120, 60, 0);
 
     LOG_I("Chassis initialized");
+
+    return 0;
 }
 
 void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
@@ -251,20 +253,8 @@ void chassis_func(Chassis_Ctrl_Cmd_t *chassis_cmd)
                 chassis_wz = 3;
                 break;
             case chassis_automode:
-            {
-                chassis_wz = 3;
-                // const game_status_t *game_status = (game_status_t *)Module_Referee_Get_cmd_data(CMD_ID_GAME_STATUS);
-                // if (game_status != NULL && game_status->type_progress.game_progress == 4) // 比赛中
-                // {
-                // }
-                // else
-                // {
-                //     chassis_vx = 0;
-                //     chassis_vy = 0;
-                //     chassis_wz = 0;
-                // }
+                chassis_wz = chassis_cmd->wz;
                 break;
-            }
             default:
                 break;
             }

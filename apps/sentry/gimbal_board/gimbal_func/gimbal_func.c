@@ -30,34 +30,34 @@ const static Bmi088_device_t       *bmi088_dev   = NULL;
 const static Module_WT606_Device_t *wt606_device = NULL;
 static float                        big_yaw_offset;
 /*内部函数*/
-static void Gimbal_PitchFeedback(DM_Motor_t *motor,float cur_angle)
+static void Gimbal_PitchFeedback(DM_Motor_t *motor, float cur_angle)
 {
-    /* 重力前馈 */
-    float ff_gravity = GRAVITY_K_PITCH * cur_angle + GRAVITY_GAMMA;
+    float err         = motor->base.controller.ref - cur_angle;
+    float ff_gravity  = GRAVITY_K * cosf(cur_angle) + GRAVITY_TORQUE_BIAS;
+    float ff_friction = FRICTION_TORQUE * tanhf(err / FRICTION_ERR_EPS);
 
-    /* 写入控制器的前馈字段，本周期 LQR 输出会自动叠加它 */
-    pitch_motor->base.controller.feedforward_torque = ff_gravity;
+    pitch_motor->base.controller.feedforward_torque = ff_gravity + ff_friction;
 }
 
-void gimbal_init(void)
+int gimbal_init(void)
 {
     ins = Module_INS_get();
     if (ins == NULL)
     {
         LOG_E("ins is null");
-        return;
+        return -1;
     }
     bmi088_dev = Module_BMI088_get_device();
     if (bmi088_dev == NULL)
     {
         LOG_E("bmi088_dev is null");
-        return;
+        return -1;
     }
     wt606_device = Module_WT606_Get();
     if (wt606_device == NULL)
     {
         LOG_E("wt606_device is null");
-        return;
+        return -1;
     }
     Motor_Init_Config_s small_yaw_config = {
         .offline_init_config =
@@ -93,7 +93,7 @@ void gimbal_init(void)
     if (small_yaw_motor == NULL)
     {
         LOG_E("small_yaw_motor init failed");
-        return;
+        return -1;
     }
 
     Motor_Init_Config_s yaw_config = {
@@ -130,7 +130,7 @@ void gimbal_init(void)
     if (big_yaw_motor == NULL)
     {
         LOG_E("big_yaw_motor init failed");
-        return;
+        return -1;
     }
 
     // PITCH
@@ -151,7 +151,7 @@ void gimbal_init(void)
                                         .controller_init_config =
                                             {
                                                 .other_angle_feedback_ptr = &ins->euler_rad[1],
-                                                .other_speed_feedback_ptr = &bmi088_dev->gyro[0], // c板的pitch轴角速度，根据实际选择对应角速度
+                                                .other_speed_feedback_ptr = &ins->gyro[0], // 与EKF一致的陷波及零偏补偿角速度 (rad/s)
                                                 .lqr_init =
                                                     {
                                                         .K         = {34.64101615f, 3.50167937f}, // 28.7312f,2.5974f
@@ -161,7 +161,7 @@ void gimbal_init(void)
                                         .setting_init_config =
                                             {
                                                 .algorithm_type        = CONTROL_LQR,
-                                                .feedback_reverse_flag = 1,
+                                                .feedback_reverse_flag = 0,
                                                 .angle_feedback_source = 1,
                                                 .speed_feedback_source = 1,
                                                 .loop_type             = ANGLE_LOOP,
@@ -171,11 +171,13 @@ void gimbal_init(void)
     if (pitch_motor == NULL)
     {
         LOG_E("pitch_motor init failed");
-        return;
+        return -1;
     }
+
+    return 0;
 }
 
-void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
+uint8_t gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
 {
     if (gimbal_cmd != NULL)
     {
@@ -199,6 +201,16 @@ void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
                 // 大小 yaw 协调控制
                 Motor_SetRef((Motor_Base *)big_yaw_motor, big_yaw_offset);
                 Motor_SetRef((Motor_Base *)small_yaw_motor, (gimbal_cmd->yaw * DEGREE_2_RAD) + auto_yaw_offset);
+                Motor_SetRef((Motor_Base *)pitch_motor, gimbal_cmd->pitch * DEGREE_2_RAD);
+                search_yaw_angle = ins->YawTotalAngle_rad;
+                break;
+            case gimbal_gyro_nav_mode:
+                Motor_Start((Motor_Base *)big_yaw_motor);
+                Motor_Start((Motor_Base *)small_yaw_motor);
+                Motor_Start((Motor_Base *)pitch_motor);
+                // 大小 yaw 协调控制
+                Motor_SetRef((Motor_Base *)big_yaw_motor, big_yaw_offset);
+                Motor_SetRef((Motor_Base *)small_yaw_motor, gimbal_cmd->yaw * DEGREE_2_RAD + auto_yaw_offset);
                 Motor_SetRef((Motor_Base *)pitch_motor, gimbal_cmd->pitch * DEGREE_2_RAD);
                 search_yaw_angle = ins->YawTotalAngle_rad;
                 break;
@@ -250,8 +262,13 @@ void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
         }
     }
     // 数据反馈
-    if (!Module_Offline_get_device_status(big_yaw_motor->base.offline_dev) && yaw_ecd != NULL)
+    if (Module_Offline_get_device_status(big_yaw_motor->base.offline_dev))
+    {
+        return 0;
+    }
+    if (yaw_ecd != NULL)
     {
         *yaw_ecd = big_yaw_motor->measure.ecd;
     }
+    return 1;
 }

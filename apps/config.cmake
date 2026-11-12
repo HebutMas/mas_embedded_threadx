@@ -1,9 +1,9 @@
-# 机器人 & 板型 配置
+﻿# 机器人 & 板型 配置
 # 在这里选择机器人和板型；配置文件是构建配置的唯一来源
 
 # 目标机器人 & 板型
-set(ROBOT "test") # hero / engineer / infantry3 / infantry4 / infantry5 / drone / sentry / darts / customcontrol
-set(BOARD "single") # single / gimbal / chassis; sentry has no single_board
+set(ROBOT "sentry") # hero / engineer / infantry3 / infantry4 / infantry5 / drone / sentry / darts / customcontrol
+set(BOARD "chassis") # single / gimbal / chassis; sentry has no single_board
 
 # 板型校验
 if(NOT BOARD MATCHES "^(single|gimbal|chassis)$")
@@ -30,7 +30,7 @@ set(CHASSIS_BOARD 0)
 set(${BOARD_UPPER}_BOARD 1)
 
 # 模块开关
-foreach(_m OFFLINE REMOTE BMI088 INS REFEREE SUPERCAP WT606 MOTOR VISION BOARDCOMM SERIAL_LEG_SOLUTION LORA VOFA)
+foreach(_m OFFLINE REMOTE BMI088 INS REFEREE SUPERCAP WT606 MOTOR VISION NAV BOARDCOMM SERIAL_LEG_SOLUTION LORA VOFA NRF24L01)
     set(MODULE_${_m} 0)
 endforeach()
 

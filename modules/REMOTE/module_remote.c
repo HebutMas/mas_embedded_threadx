@@ -64,9 +64,9 @@ static void vt_task_entry(ULONG arg)
     }
 }
 
-void Module_Remote_init(void)
+int Module_Remote_init(void)
 {
-    if (g_initialized) return;
+    if (g_initialized) return 0;
 
     memset(&g_remote_data, 0, sizeof(g_remote_data));
 
@@ -75,13 +75,13 @@ void Module_Remote_init(void)
     if (remote_sbus_init(&g_rc_offline) != TX_SUCCESS)
     {
         LOG_E("SBUS init failed");
-        return;
+        return -1;
     }
 #elif (REMOTE_SOURCE == 2)
     if (remote_dt7_init(&g_rc_offline) != TX_SUCCESS)
     {
         LOG_E("DT7 init failed");
-        return;
+        return -1;
     }
 #endif
 
@@ -90,13 +90,13 @@ void Module_Remote_init(void)
     if (remote_vt02_init(&g_vt_offline) != TX_SUCCESS)
     {
         LOG_E("VT02 init failed");
-        return;
+        return -1;
     }
 #elif (REMOTE_VT_SOURCE == 2)
     if (remote_vt03_init(&g_vt_offline) != TX_SUCCESS)
     {
         LOG_E("VT03 init failed");
-        return;
+        return -1;
     }
 #endif
 
@@ -106,7 +106,7 @@ void Module_Remote_init(void)
     if (status != TX_SUCCESS)
     {
         LOG_E("Failed to create remote ctrl task");
-        return;
+        return -1;
     }
 
     /* 图传解码任务 */
@@ -115,11 +115,13 @@ void Module_Remote_init(void)
     if (status != TX_SUCCESS)
     {
         LOG_E("Failed to create VT task");
-        return;
+        return -1;
     }
 
     g_initialized = true;
     LOG_I("Remote module initialized (RC=%d, VT=%d)", REMOTE_SOURCE, REMOTE_VT_SOURCE);
+
+    return 0;
 }
 
 Remote_Data_t *Module_Remote_get_data(void)

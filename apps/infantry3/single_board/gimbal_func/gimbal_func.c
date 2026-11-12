@@ -16,19 +16,19 @@ static DM_Motor_t  *pitch_motor = NULL; // pitch电机指针
 const static Ins_t           *ins        = NULL;
 const static Bmi088_device_t *bmi088_dev = NULL;
 
-void gimbal_init(void)
+int gimbal_init(void)
 {
     ins = Module_INS_get();
     if (ins == NULL)
     {
         LOG_E("ins is null");
-        return;
+        return -1;
     }
     bmi088_dev = Module_BMI088_get_device();
     if (bmi088_dev == NULL)
     {
         LOG_E("bmi088_dev is null");
-        return;
+        return -1;
     }
     Motor_Init_Config_s yaw_config = {
         .offline_init_config =
@@ -64,7 +64,7 @@ void gimbal_init(void)
     if (yaw_motor == NULL)
     {
         LOG_E("yaw_motor init failed");
-        return;
+        return -1;
     }
 
     // PITCH
@@ -88,7 +88,7 @@ void gimbal_init(void)
                                                 .other_speed_feedback_ptr = &bmi088_dev->gyro[0], // c板的pitch轴角速度，根据实际选择对应角速度
                                                 .lqr_init =
                                                     {
-                                                        .K         = {5.4f,0.6f}, // 28.7312f,2.5974f
+                                                        .K         = {5.4f, 0.6f}, // 28.7312f,2.5974f
                                                         .state_dim = 2,
                                                     },
                                             },
@@ -96,7 +96,7 @@ void gimbal_init(void)
                                             {
                                                 .algorithm_type        = CONTROL_LQR,
                                                 .feedback_reverse_flag = 1,
-                                                .motor_reverse_flag   = 1,
+                                                .motor_reverse_flag    = 1,
                                                 .angle_feedback_source = 1,
                                                 .speed_feedback_source = 1,
                                                 .loop_type             = ANGLE_LOOP,
@@ -106,11 +106,14 @@ void gimbal_init(void)
     if (pitch_motor == NULL)
     {
         LOG_E("pitch_motor init failed");
-        return;
+        return -1;
     }
+
+    return 0;
 }
 
-void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
+
+uint8_t gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
 {
     if (gimbal_cmd != NULL)
     {
@@ -138,9 +141,14 @@ void gimbal_func(Gimbal_Ctrl_Cmd_t *gimbal_cmd, uint16_t *yaw_ecd)
             Motor_Stop((Motor_Base *)pitch_motor);
         }
     }
-    // 数据反馈
-    if (!Module_Offline_get_device_status(yaw_motor->base.offline_dev) && yaw_ecd != NULL)
+    // 数据反馈: 掉线时 ecd 不刷新, 沿用旧值会让底盘朝一个早已失效的角度死跟
+    if (Module_Offline_get_device_status(yaw_motor->base.offline_dev))
+    {
+        return 0;
+    }
+    if (yaw_ecd != NULL)
     {
         *yaw_ecd = yaw_motor->measure.ecd;
     }
+    return 1;
 }

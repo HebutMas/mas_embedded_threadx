@@ -113,6 +113,8 @@ void ui_string_set_text(ui_string_t *str_fig, const char *text, uint8_t str_len)
 {
     if (str_fig == NULL || text == NULL) return;
     uint8_t copy_len = (str_len > 30u) ? 30u : str_len;
+    size_t  text_len = strlen(text);
+    if (copy_len > text_len) copy_len = (uint8_t)text_len; /* 防止读取超出字符串实际长度 */
     memset(str_fig->text, 0, sizeof(str_fig->text));
     memcpy(str_fig->text, text, copy_len);
     /* 同步更新 details_b 中存储的字符长度 */

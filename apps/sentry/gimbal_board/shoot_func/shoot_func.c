@@ -12,7 +12,7 @@ DJI_Motor_t *friction_l = NULL;
 DJI_Motor_t *friction_r = NULL;
 DJI_Motor_t *loader     = NULL; // 拨盘电机
 
-void shoot_init(void)
+int shoot_init(void)
 {
     Motor_Init_Config_s friction_config = {
         .offline_init_config =
@@ -48,7 +48,7 @@ void shoot_init(void)
     if (friction_l == NULL)
     {
         LOG_E("friction_l init failed");
-        return;
+        return -1;
     }
     // 右摩擦轮
     friction_config.transport_config.can.tx_id     = 2; // 右摩擦轮,改txid和方向就行
@@ -58,7 +58,7 @@ void shoot_init(void)
     if (friction_r == NULL)
     {
         LOG_E("friction_r init failed");
-        return;
+        return -1;
     }
 
     // 拨盘电机
@@ -101,8 +101,10 @@ void shoot_init(void)
     if (loader == NULL)
     {
         LOG_E("loader init failed");
-        return;
+        return -1;
     }
+
+    return 0;
 }
 void shoot_func(Shoot_Ctrl_Cmd_t *shoot_cmd)
 {

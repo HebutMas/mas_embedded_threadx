@@ -40,7 +40,7 @@ void app_loop(void)
 对外只提供四个函数：
 
 ```c
-void Module_Lora_Init(void);                               /* 框架自动调用 */
+int  Module_Lora_Init(void);                               /* 框架自动调用 */
 int  Lora_Register(const char *name, void *value, Lora_Data_Type type);
 int  Lora_Start(void);
 void Lora_Process(void);

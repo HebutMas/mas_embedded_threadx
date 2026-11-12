@@ -165,15 +165,10 @@ void IMU_QuaternionEKF_Update(float gx, float gy, float gz, float ax, float ay, 
         1.0f / invSqrt(QEKF_INS.Gyro[0] * QEKF_INS.Gyro[0] + QEKF_INS.Gyro[1] * QEKF_INS.Gyro[1] + QEKF_INS.Gyro[2] * QEKF_INS.Gyro[2]);
     QEKF_INS.accl_norm = 1.0f / accelInvNorm;
 
-    // 如果角速度小于阈值且加速度处于设定范围内,认为运动稳定,加速度可以用于修正角速度
-    // 稍后在最后的姿态更新部分会利用StableFlag来确定
-    const float acc_norm_gate  = 0.2f;  // m/s^2, 加速度模长门限(越小越严格)
-    const float horiz_acc_gate = 0.15f; // m/s^2, 水平(XY)加速度门限(抑制摩擦轮等振动/线加速度误触发)
-    float       horiz_acc      = 0.0f;
-    arm_sqrt_f32(QEKF_INS.Accel[0] * QEKF_INS.Accel[0] + QEKF_INS.Accel[1] * QEKF_INS.Accel[1], &horiz_acc);
-
-    if (QEKF_INS.gyro_norm < 0.3f && QEKF_INS.accl_norm > 9.8f - acc_norm_gate && QEKF_INS.accl_norm < 9.8f + acc_norm_gate &&
-        horiz_acc < horiz_acc_gate)
+    // 使用模长判定是否允许卡方失配恢复；机体系XY含倾斜时的重力，不能作为水平运动门限。
+    // 保留角速度、加速度模长及后续卡方检验，避免直接接受冲击/线加速度。
+    const float acc_norm_gate = 0.2f; // m/s^2
+    if (QEKF_INS.gyro_norm < 0.3f && QEKF_INS.accl_norm > 9.8f - acc_norm_gate && QEKF_INS.accl_norm < 9.8f + acc_norm_gate)
     {
         QEKF_INS.StableFlag = 1;
     }

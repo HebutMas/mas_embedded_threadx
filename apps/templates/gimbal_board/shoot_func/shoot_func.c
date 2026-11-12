@@ -6,9 +6,10 @@
 
 #include "shoot_func.h"
 
-void shoot_init(void)
+int shoot_init(void)
 {
     /* TODO: 初始化发射电机 */
+    return 0;
 }
 
 void shoot_func(Shoot_Ctrl_Cmd_t *shoot_cmd)
