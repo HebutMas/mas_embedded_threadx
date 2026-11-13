@@ -14,6 +14,9 @@
 /* 达妙电机参数配置表 */
 static const DM_Motor_Params_t dm_motor_params[] = {
     {-12.5f, 12.5f, -30.0f, 30.0f, 0.0f, 500.0f, 0.0f, 5.0f, -10.0f, 10.0f}, /* DM4310 */
+    /* DM8009：原走 default 误用 DM4310 表（TMAX±10），命令标度差 5.4 倍且 >10Nm 时 12bit 回绕翻号；
+       量程对齐 luntui1 J8009，上机前用调试助手核对电机内 TMAX/VMAX */
+    {-12.5f, 12.5f, -45.0f, 45.0f, 0.0f, 500.0f, 0.0f, 5.0f, -54.0f, 54.0f},
 };
 
 static const DM_Motor_Params_t *dm_get_params(Motor_Type_e type)
@@ -22,6 +25,8 @@ static const DM_Motor_Params_t *dm_get_params(Motor_Type_e type)
     {
     case DM4310:
         return &dm_motor_params[0];
+    case DM8009:
+        return &dm_motor_params[1];   /* 之前无此分支，走 default 误拿 DM4310 参数表 */
     /* 后续在此添加其他型号映射 */
     default:
         return &dm_motor_params[0];
@@ -90,6 +95,13 @@ static void mit_ctrl(DM_Motor_t *motor, float pos, float vel, float kp, float kd
     msg.hcan             = bus->hcan;
     msg.id               = can_dev->tx_id + DM_MIT_MODE;
     msg.len              = 8;
+
+    /* 打包前钳位到字段量程：越界饱和而不是 12bit 回绕翻号（对齐 luntui1 DM_8009_cmd 的 data_limit） */
+    VAL_LIMIT(pos, param->p_min, param->p_max);
+    VAL_LIMIT(vel, param->v_min, param->v_max);
+    VAL_LIMIT(kp, param->kp_min, param->kp_max);
+    VAL_LIMIT(kd, param->kd_min, param->kd_max);
+    VAL_LIMIT(torq, param->t_min, param->t_max);
 
     uint16_t pos_tmp = float_to_uint(pos, param->p_min, param->p_max, 16);
     uint16_t vel_tmp = float_to_uint(vel, param->v_min, param->v_max, 12);
