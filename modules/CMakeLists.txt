@@ -128,6 +128,36 @@ if(MODULE_BOARDCOMM)
     list(APPEND _module_includes ${CMAKE_CURRENT_SOURCE_DIR}/BOARDCOMM)
 endif()
 
+if(MODULE_SERIAL_LEG_SOLUTION)
+    list(APPEND _module_sources
+        algorithm/serial_leg_solution/observer/observer.c
+        algorithm/serial_leg_solution/observer/X_KF.c
+        algorithm/serial_leg_solution/kinematics/kinematics.c
+        algorithm/serial_leg_solution/LQR/LQR_leg.c
+        algorithm/serial_leg_solution/VMC/VMC.c
+        algorithm/serial_leg_solution/leg_length/length_control.c
+        algorithm/serial_leg_solution/roll_comp/roll_control.c
+        algorithm/serial_leg_solution/leg_coor/leg_coor.c
+        algorithm/serial_leg_solution/gas_spring/gas_spring.c
+        algorithm/serial_leg_solution/car_state/car_state.c
+        algorithm/serial_leg_solution/pose_adjust/pose_adjust.c
+        algorithm/serial_leg_solution/turn_control/turn_control.c
+    )
+    list(APPEND _module_includes
+        ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution
+        ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution/observer
+        ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution/kinematics
+        ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution/LQR
+        ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution/VMC
+        ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution/leg_length
+        ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution/roll_comp
+        ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution/leg_coor
+        ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution/gas_spring
+        ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution/car_state
+        ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution/pose_adjust
+        ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/serial_leg_solution/turn_control
+    )
+endif()
 if(MODULE_LORA)
     list(APPEND _module_sources
         LORA/module_lora.c

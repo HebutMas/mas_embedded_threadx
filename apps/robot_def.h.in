@@ -10,6 +10,7 @@
 #define ROBOT_DRONE     6
 #define ROBOT_SENTRY    7
 #define ROBOT_DARTS     8
+#define ROBOT_HERO2     9
 
 /* 当前编译的机器人 — 由 CMake 根据 ROBOT 选项自动生成 */
 #define CURRENT_ROBOT   ROBOT_@ROBOT_UPPER@
